@@ -1,0 +1,595 @@
+/* ==========================================================================
+   PLANETARY TWIN MATCHER & CARTOGRAFÍA LUNAR — HOJA DE ESTILOS UNIFICADA
+   NASA Space Apps 2026
+   ========================================================================== */
+
+:root {
+    --bg-space: #0b0f19;
+    --bg-panel: rgba(17, 24, 39, 0.85);
+    --bg-card: #0f1626;
+    --bg-deep: #020617;
+    --ink-primary: #e2e8f0;
+    --ink-muted: #94a3b8;
+    --accent-sky: #38bdf8;
+    --accent-emerald: #10b981;
+    --accent-indigo: #818cf8;
+    --accent-amber: #f59e0b;
+    --border-subtle: rgba(56, 189, 248, 0.2);
+    --border-slate: #1e293b;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html {
+    scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+
+body {
+    background-color: var(--bg-space);
+    color: var(--ink-primary);
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+    margin: 0;
+}
+
+/* Paneles translúcidos estilo telemetría espacial */
+.glass-panel {
+    background: var(--bg-panel);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-subtle);
+}
+
+/* Navegación superior entre módulos (Gemelo Planetario / Mapa Lunar) */
+.nav-tab {
+    color: var(--ink-muted);
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.nav-tab:hover {
+    color: #ffffff;
+    background: rgba(56, 189, 248, 0.08);
+}
+
+.nav-tab.active {
+    color: #ffffff;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.28), rgba(99, 102, 241, 0.28));
+    border-color: rgba(56, 189, 248, 0.45);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.18);
+}
+
+/* ==========================================================================
+   MÓDULO 1: PLANETARY TWIN MATCHER (3D, RADAR, SLIDER TEMPORAL Y MAPA LEAFLET)
+   ========================================================================== */
+
+#earth-map {
+    height: 100%;
+    min-height: 285px;
+    border-radius: 0.75rem;
+    z-index: 1;
+}
+
+/* Contenedor del visor 3D Three.js */
+#canvas-3d-container {
+    width: 100%;
+    height: 210px;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg-deep);
+}
+
+.topo-grid {
+    background-image:
+        linear-gradient(to right, rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+/* Tarjetas interactivas del Podio Top 3 */
+.rank-card {
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+.rank-card:hover {
+    transform: translateY(-2px);
+}
+
+.rank-card.active {
+    border-color: var(--accent-sky);
+    background: rgba(14, 165, 233, 0.15);
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+}
+
+.weight-pill {
+    transition: all 0.25s ease;
+}
+
+/* Deslizador temporal de Enero a Diciembre */
+input[type="range"].month-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    background: linear-gradient(90deg, #0284c7 0%, #10b981 50%, #6366f1 100%);
+    border-radius: 999px;
+    outline: none;
+    cursor: pointer;
+}
+
+input[type="range"].month-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 3px solid var(--accent-sky);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+input[type="range"].month-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+
+input[type="range"].month-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 3px solid var(--accent-sky);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.month-tick {
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.month-tick:hover {
+    color: var(--accent-sky);
+}
+
+.month-tick.active-month {
+    color: var(--accent-sky);
+    font-weight: 800;
+    text-decoration: underline;
+}
+
+/* Pines personalizados del Mapa Mundial Leaflet según Ranking */
+.custom-map-pin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 800;
+    border-radius: 9999px;
+    color: #ffffff;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+}
+
+.pin-rank-1 {
+    background: linear-gradient(135deg, #10b981, #0284c7);
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.95), 0 0 28px rgba(56, 189, 248, 0.7);
+    font-size: 11px;
+    padding: 3px 8px;
+    z-index: 1000 !important;
+    animation: pulseWinner 2s infinite;
+}
+
+.pin-rank-2 {
+    background: rgba(245, 158, 11, 0.92);
+    border: 2px solid #fef3c7;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+    font-size: 10px;
+    padding: 2px 7px;
+    z-index: 800 !important;
+}
+
+.pin-rank-3 {
+    background: rgba(100, 116, 139, 0.92);
+    border: 1.5px solid #e2e8f0;
+    box-shadow: 0 0 8px rgba(148, 163, 184, 0.4);
+    font-size: 10px;
+    padding: 2px 6px;
+    z-index: 700 !important;
+}
+
+.pin-rank-other {
+    background: rgba(51, 65, 85, 0.85);
+    border: 1px solid #94a3b8;
+    color: #cbd5e1;
+    font-size: 9px;
+    padding: 1px 5px;
+    z-index: 600 !important;
+}
+
+@keyframes pulseWinner {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+}
+
+/* ==========================================================================
+   MÓDULO 2: MAPA LUNAR EQUIRRECTANGULAR & FICHA TOPOGRÁFICA
+   ========================================================================== */
+
+.lunar-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 12px;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.85);
+    color: var(--ink-primary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.lunar-chip:hover {
+    border-color: rgba(56, 189, 248, 0.5);
+    background: rgba(30, 41, 59, 0.9);
+}
+
+.lunar-chip input[type="checkbox"] {
+    accent-color: var(--accent-sky);
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+/* Contenedor desplazable del lienzo equirrectangular 2880x1440 */
+.lunar-map-viewport {
+    overflow-x: auto;
+    border: 1px solid #334155;
+    border-radius: 0.75rem;
+    background: #0e1013;
+    scrollbar-width: thin;
+    scrollbar-color: #38bdf8 #0f172a;
+}
+
+.lunar-map-viewport::-webkit-scrollbar {
+    height: 8px;
+}
+
+.lunar-map-viewport::-webkit-scrollbar-track {
+    background: #0f172a;
+    border-radius: 999px;
+}
+
+.lunar-map-viewport::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 999px;
+}
+
+.lunar-map-viewport::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-sky);
+}
+
+#wrap {
+    position: relative;
+    min-width: 1500px;
+}
+
+#wrap canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+#wrap #ov {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* Tooltip flotante sobre accidentes lunares */
+#tip {
+    position: fixed;
+    z-index: 60;
+    pointer-events: none;
+    padding: 5px 10px;
+    border-radius: 8px;
+    background: rgba(2, 6, 23, 0.94);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    color: #f8fafc;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+    display: none;
+    white-space: nowrap;
+}
+
+/* Tabla descriptiva de parámetros selenográficos (<dl>) */
+.lunar-telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 8px;
+    margin: 0;
+}
+
+.lunar-telemetry-grid .telemetry-item {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid var(--border-slate);
+    border-radius: 10px;
+    padding: 8px 12px;
+}
+
+.lunar-telemetry-grid dt {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-muted);
+    margin-bottom: 2px;
+}
+
+.lunar-telemetry-grid dd {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Tarjeta de referencia visual lunar */
+.static-moon-card {
+    width: 100%;
+    height: 200px;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg-deep);
+    border: 1px solid #334155;
+}
+
+.static-moon-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.static-moon-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 6px 12px;
+    background: rgba(2, 6, 23, 0.88);
+    backdrop-filter: blur(6px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--ink-muted);
+    border-top: 1px solid rgba(56, 189, 248, 0.15);
+}
+
+/* Galería de imágenes reales de Wikimedia / NASA */
+#gl {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+}
+
+#gl figure {
+    margin: 0;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #0f172a;
+    transition: border-color 0.2s ease;
+}
+
+#gl figure:hover {
+    border-color: var(--accent-sky);
+}
+
+#gl img {
+    display: block;
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+}
+
+#gl figcaption {
+    font-size: 11px;
+    padding: 5px 7px;
+    color: var(--ink-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#gl a {
+    color: inherit;
+    text-decoration: none;
+}
+
+/* Botón Puente de Sincronización hacia el Twin Matcher */
+.sync-bridge-btn {
+    background: linear-gradient(135deg, #0284c7, #4f46e5);
+    color: #ffffff;
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.3);
+    transition: all 0.25s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.sync-bridge-btn:hover {
+    background: linear-gradient(135deg, #0369a1, #4338ca);
+    box-shadow: 0 6px 18px rgba(56, 189, 248, 0.5);
+    transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   MODAL DE INFORME DE ANÁLISIS PLANETARIO Y ESTILOS DE IMPRESIÓN
+   ========================================================================== */
+
+.report-sheet {
+    background: var(--bg-card);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: var(--ink-primary);
+}
+
+.report-sheet h2 {
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-sky);
+    font-weight: 800;
+    border-bottom: 1px solid var(--border-slate);
+    padding-bottom: 6px;
+    margin: 26px 0 10px;
+}
+
+.report-sheet p,
+.report-sheet li {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #cbd5e1;
+}
+
+.report-sheet table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.report-sheet th {
+    text-align: right;
+    color: var(--ink-muted);
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    padding: 5px 8px;
+    border-bottom: 1px solid #334155;
+}
+
+.report-sheet th:first-child,
+.report-sheet td:first-child {
+    text-align: left;
+}
+
+.report-sheet td {
+    text-align: right;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border-slate);
+    font-family: ui-monospace, Menlo, monospace;
+}
+
+.report-sheet td:first-child {
+    font-family: inherit;
+    color: var(--ink-primary);
+}
+
+.report-sheet tfoot td {
+    font-weight: 800;
+    color: #ffffff;
+    border-top: 1px solid #475569;
+}
+
+.rep-head {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.rep-head div {
+    background: #0b1220;
+    border: 1px solid var(--border-slate);
+    border-radius: 10px;
+    padding: 8px 10px;
+}
+
+.rep-head small {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.rep-head b {
+    font-size: 14px;
+    color: #ffffff;
+}
+
+.rep-box {
+    background: #0b1220;
+    border: 1px solid var(--border-slate);
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+.rep-bar {
+    height: 8px;
+    border-radius: 99px;
+    background: var(--border-slate);
+    overflow: hidden;
+}
+
+.rep-bar > span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #38bdf8);
+}
+
+@media print {
+    body > *:not(#report-overlay) {
+        display: none !important;
+    }
+    #report-overlay {
+        position: static !important;
+        background: #ffffff !important;
+        padding: 0 !important;
+        display: block !important;
+    }
+    .no-print {
+        display: none !important;
+    }
+    .report-sheet {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        border: none !important;
+    }
+    .report-sheet p,
+    .report-sheet li,
+    .report-sheet td,
+    .report-sheet td:first-child,
+    .report-sheet b {
+        color: #0f172a !important;
+    }
+    .report-sheet h2 {
+        color: #0369a1 !important;
+    }
+    .rep-box,
+    .rep-head div {
+        background: #f8fafc !important;
+        border-color: #cbd5e1 !important;
+    }
+}

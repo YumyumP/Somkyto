@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mapa lunar equirrectangular</title>
+<style>
+:root{--bg:#F1F3F6;--pn:#FFFFFF;--ink:#14181D;--mut:#46515C;--ln:#C7CED6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1013;--pn:#171A1F;--ink:#E8ECF0;--mut:#A9B2BC;--ln:#2A3038}}
+:root[data-theme="dark"]{--bg:#0E1013;--pn:#171A1F;--ink:#E8ECF0;--mut:#A9B2BC;--ln:#2A3038}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
+h1{font-size:20px;margin:0 0 4px}
+p{margin:0 0 8px;color:var(--mut)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.bar label,.bar button{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border:1px solid var(--ln);border-radius:10px;background:var(--pn);color:var(--ink);font:inherit;cursor:pointer}
+.map{overflow-x:auto;border:1px solid var(--ln);border-radius:10px;background:#0E1013}
+#wrap{position:relative;min-width:1500px}#wrap canvas{display:block;width:100%;height:auto}#wrap #ov{position:absolute;left:0;top:0;height:100%;pointer-events:none}#tip{position:fixed;z-index:5;pointer-events:none;padding:4px 8px;border-radius:6px;background:rgba(10,12,15,.92);color:#fff;font-size:13px;display:none;white-space:nowrap}#gl{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:8px 0}#gl figure{margin:0;border:1px solid var(--ln);border-radius:8px;overflow:hidden;background:var(--bg)}#gl img{display:block;width:100%;height:120px;object-fit:cover}#gl figcaption{font-size:12px;padding:4px 6px;color:var(--mut)}#gl a{color:inherit}
+#ro,#st{font-size:13px;color:var(--mut);min-height:20px;margin:8px 0}
+.note{font-size:13px}
+h2{font-size:18px;margin:0}h3{font-size:15px;margin:16px 0 6px}
+#pn{margin-top:12px;padding:14px;border:1px solid var(--ln);border-radius:10px;background:var(--pn)}
+#pn canvas{display:block;width:100%;max-width:560px;border:1px solid var(--ln);border-radius:8px;background:#0E1013}
+dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:10px 0}dt{color:var(--mut)}dd{margin:0}
+#lnk a{color:inherit}select{font:inherit;min-height:40px;background:var(--pn);color:var(--ink);border:1px solid var(--ln);border-radius:8px}
+
+/* Contenedor de la foto estática de la Luna */
+.static-moon-card {
+    width: 100%;
+    height: 220px;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    background: #020617;
+    border: 1px solid var(--ln);
+    margin: 10px 0;
+}
+.static-moon-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.static-moon-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 6px 10px;
+    background: rgba(2, 6, 23, 0.88);
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--mut);
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Botón de Sincronización / Simulador */
+.sync-bridge-btn {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 15px;
+    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.sync-bridge-btn:hover {
+    background: linear-gradient(135deg, #0369a1, #075985);
+    box-shadow: 0 6px 16px rgba(56, 189, 248, 0.5);
+}
+</style>
+</head>
+<body>
+<h1>Mapa lunar · proyección equirrectangular</h1>
+<p>Superficie completa de la Luna, longitudes selenográficas (E positivo). Desliza el mapa horizontalmente en pantallas pequeñas.</p>
+<div class="bar">
+<label><input type="checkbox" id="lr" checked> Foto / relieve</label>
+<label><input type="checkbox" id="lc" checked> Curvas de nivel</label>
+<label><input type="checkbox" id="lg" checked> Cuadrícula</label>
+<label><input type="checkbox" id="lm" checked> Mares</label>
+<label><input type="checkbox" id="lk" checked> Cráteres</label>
+<label><input type="checkbox" id="ls" checked> ★ Misiones</label>
+<label>Terreno <select id="sel"><option value="">Elige uno…</option></select></label>
+<label>Foto global LROC (JPG/PNG) <input type="file" id="pho" accept="image/*"></label>
+<label>DEM LOLA (PNG/JPG 8 bits) <input type="file" id="dem" accept="image/*"></label>
+<button type="button" id="syn">Volver al modelo sintético</button>
+<button type="button" id="tour">▶ Tour de misiones</button>
+</div>
+<div id="st" role="status" aria-live="polite">Calculando relieve…</div>
+<div class="map"><div id="wrap"><canvas id="c" width="2880" height="1440" role="img" aria-label="Mapa plano de la Luna con mares, cráteres, cuadrícula y curvas de nivel"></canvas><canvas id="ov" width="2880" height="1440" aria-hidden="true"></canvas></div></div><div id="tip"></div>
+<div id="ro" aria-live="polite">Pasa el cursor sobre un mar, cráter o ★ misión para resaltarlo; haz clic (o elígelo en la lista) para ver su ficha, datos del terreno e imágenes reales.</div>
+
+<section id="pn" hidden>
+<h2 id="pe"></h2><p id="pl"></p>
+<dl id="pd"></dl>
+
+<!-- 1. PERFIL TOPOGRÁFICO (Ubicado en la parte superior) -->
+<h3>Perfil topográfico</h3>
+<canvas id="pf" width="640" height="220" role="img" aria-label="Perfil de elevación oeste-este y sur-norte del terreno seleccionado"></canvas>
+
+<p id="pf2"></p><p id="pw" class="note"></p>
+
+<!-- 2. FOTO ESTÁTICA DE LA LUNA (Ubicada debajo del perfil) -->
+<div class="static-moon-card">
+    <img id="moon-view-img" src="https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg" alt="Foto estática de la Luna" />
+    <div class="static-moon-footer">
+        <span style="color:#38bdf8; font-weight:500;">FOTO ESTÁTICA LUNAR</span>
+        <span>TEMP. MEDIA -183 °C</span>
+    </div>
+</div>
+
+<h3>Imágenes reales</h3>
+<div id="gl"></div><p id="gs" class="note"></p>
+<h3>Recorte de tu mosaico LROC</h3>
+<canvas id="ph" width="520" height="520" role="img" aria-label="Recorte del mosaico LROC sobre el terreno seleccionado"></canvas>
+<p id="pn0" class="note">Carga un mosaico LROC con el botón “Foto global LROC” para ver aquí un recorte real de este terreno.</p>
+
+<!-- Botón de Sincronización -->
+<button type="button" class="sync-bridge-btn" onclick="enviarSeleccionTerreno()">
+    🚀 Abrir Simulador Topográfico Detallado
+</button>
+
+<p id="lnk" class="note"></p>
+</section>
+
+<p class="note">Qué es real y qué no: nombres, coordenadas y diámetros vienen de catálogos y son aproximados, y las formas de los mares son simplificadas. Mientras no cargues datos, el relieve, las curvas, las elevaciones y los perfiles son un modelo sintético. Para datos reales descarga del “CGI Moon Kit” de NASA (svs.gsfc.nasa.gov/4720) el mapa de color LROC y el mapa de elevación LOLA, conviértelos a JPG/PNG (la elevación a gris de 8 bits, de −9,1 a +10,8 km) y cárgalos con los botones. Las imágenes de cada ficha se descargan de Wikipedia (NASA y otras fuentes) cuando hay conexión; es una búsqueda automática, así que verifica que correspondan al lugar.</p>
+<script>
+(()=>{
+const W=2880,H=1440,PPD=W/360,KM=30.32,STEP=.4,GW=900,GH=450,S=W/GW,RM=1737.4,rad=Math.PI/180;
+const cv=document.getElementById('c'),g=cv.getContext('2d'),ro=document.getElementById('ro'),st=document.getElementById('st');
+const X=o=>(o+180)*PPD,Y=a=>(90-a)*PPD,cl=(v,a,b)=>Math.max(a,Math.min(b,v)),sm=t=>t*t*(3-2*t);
+const MARIA=[['Mare Imbrium','Mar de las Lluvias',32.8,-15.6,560,520,1123,'Gran cuenca de impacto rellena de lava basáltica. Apolo 15 aterrizó en su borde, junto a los Apeninos.'],['Mare Serenitatis','Mar de la Serenidad',28,17.5,350,340,707,'Mar circular rodeado de montañas; Apolo 17 aterrizó en el valle Taurus–Littrow, en su borde.'],['Mare Tranquillitatis','Mar de la Tranquilidad',8.5,31.4,440,400,873,'Sitio del alunizaje del Apolo 11, en 1969.'],['Mare Crisium','Mar das Crisis',17,59.1,240,190,418,'Mar aislado cerca del borde oriental; la sonda soviética Luna 24 aterrizó aquí en 1976.'],['Mare Fecunditatis','Mar de la Fecundidad',-7.8,51.3,460,360,909,'Extenso mar del este; la sonda Luna 16 recogió muestras aquí en 1970.'],['Mare Nectaris','Mar del Néctar',-15.2,35.5,165,165,333,'Cuenca antigua cuya formación marca el inicio del período Nectárico de la historia lunar.'],['Mare Frigoris','Mar del Frío',56,1.4,780,140,1596,'Larga franja de lava al norte de la cara visible.'],['Oceanus Procellarum','Océano de las Tormentas',18.4,-57.4,760,950,2568,'La mayor llanura de lava de la cara visible. Apolo 12 aterrizó aquí en 1969 y Chang’e 5 en 2020.'],['Mare Nubium','Mar de las Nubes',-21.3,-16.6,350,330,715,'Mar del hemisferio sur de la cara visible, cerca del cráter Ptolomeo.'],['Mare Humorum','Mar de las Humedades',-24.4,-38.6,190,190,389,'Cuenca circular; el cráter Gassendi está en su borde norte.'],['Mare Cognitum','Mar Conocido',-10,-23.1,180,180,376,'Recibió su nombre tras el impacto de la sonda Ranger 7 en 1964.'],['Mare Vaporum','Mar de los Vapores',13.3,3.6,120,120,245,'Pequeño mar cerca de los Apeninos; el sitio de Apolo 15 queda al norte.'],['Mare Insularum','Mar de las Islas',7.5,-30.9,250,220,513,'Mar entre el Océano de las Tormentas y el Mar Conocido, cerca del cráter Copérnico.'],['Mare Smythii','Mar de Smyth',1.3,87.5,190,160,373,'Mar junto al borde oriental; se ve de canto desde la Tierra.'],['Mare Marginis','Mar del Borde',13.3,86.1,180,140,358,'Mar del borde oriental, visible solo con libración favorable.'],['Mare Moscoviense','Mar de Moscú',27.3,147.9,135,135,277,'Mar de la cara oculta, conocido gracias a imágenes de sondas soviéticas.'],['Mare Ingenii','Mar del Ingenio',-33.7,163.5,150,150,318,'Mar de la cara oculta con remolinos brillantes asociados a anomalías magnéticas.'],['Mare Australe','Mar Austral',-38.9,93,300,220,603,'Mar irregular del borde suroriental.'],['Mare Orientale','Mar Oriental',-19.4,-92.8,160,160,327,'Centro de la cuenca de impacto Orientale, la mejor conservada de la Luna.']];
+const MR=MARIA.map((m,i)=>({n:m[0],es:m[1],u:m[1].toUpperCase(),a:m[2],o:m[3],ew:m[4],rx:m[4]/(KM*Math.max(.25,Math.cos(m[2]*rad))),ry:m[5]/KM,s:(i+1)*1.3,D:m[6],f:m[7]}));
+const CR=[['Copérnico',9.62,-20.08,96,'r','Cráter joven (unos 800 millones de años) con terrazas, picos centrales y rayos brillantes.','Copernicus'],['Tycho',-43.31,-11.36,85,'r','Cráter joven (unos 108 millones de años) con el sistema de rayos más llamativo de la cara visible.','Tycho'],['Platón',51.62,-9.38,101,'t','Cráter de suelo oscuro y plano, inundado de lava, en el borde norte del Mar de las Lluvias.','Plato'],['Shackleton',-89.9,129.78,21,'p','Cráter junto al polo sur con el interior en sombra permanente; candidato a albergar hielo de agua y región de interés para Artemis.','Shackleton'],['Aristarco',23.73,-47.49,40,'r','Uno de los cráteres más brillantes de la cara visible.','Aristarchus'],['Kepler',8.12,-38.01,31,'l','Cráter joven con rayos, en el Océano de las Tormentas.','Kepler'],['Clavius',-58.8,-14.4,225,'r','Uno de los mayores cráteres de la cara visible; su suelo tiene un arco de cráteres menores.','Clavius'],['Grimaldi',-5.5,-68.3,172,'l','Cuenca de suelo oscuro cerca del borde occidental.','Grimaldi'],['Langrenus',-8.9,61.1,132,'r','Cráter con terrazas y pico central, junto al Mar de la Fecundidad.','Langrenus'],['Teófilo',-11.4,26.4,100,'r','Cráter con picos centrales; forma un trío con Cirilo y Catalina.','Theophilus'],['Ptolomeo',-9.3,-1.9,153,'l','Cráter de suelo plano y oscuro, cerca del centro de la cara visible.','Ptolemaeus'],['Arquímedes',29.7,-4,83,'t','Cráter de suelo liso inundado de lava, entre los Apeninos y el Mar de las Lluvias.','Archimedes'],['Aristóteles',50.2,17.3,87,'r','Cráter con terrazas, al norte del Mar de la Serenidad.','Aristoteles'],['Petavius',-25.1,60.4,177,'r','Cráter con pico central y una gran grieta en el suelo.','Petavius'],['Tsiolkovski',-20.4,129.1,180,'r','Cráter de la cara oculta con suelo oscuro y un pico central muy marcado.','Tsiolkovskiy'],['Hertzsprung',2.6,-128.7,591,'b','Cuenca de impacto de anillos múltiples en la cara oculta.','Hertzsprung'],['Korolev',-4,-157.4,437,'b','Gran cuenca de impacto en la cara oculta.','Korolev'],['Schrödinger',-75,132.4,316,'t','Cuenca con anillo de picos cerca del polo sur, en la cara oculta.','Schrödinger'],['Cabeus',-84.9,-35.5,98,'p','Cráter cerca del polo sur donde la misión LCROSS (2009) detectó agua.','Cabeus']];
+const E=new Float32Array(GW*GH),M=new Float32Array(GW*GH);let real=false,hs=null,cont=[],photo=null,sel=null;
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const hsh=(x,y)=>{let h=Math.imul(x,374761393)^Math.imul(y,668265263);h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967295};
+function vn(x,y,w){const xi=Math.floor(x),yi=Math.floor(y),fx=sm(x-xi),fy=sm(y-yi),x0=((xi%w)+w)%w,x1=(x0+1)%w,a=hsh(x0,yi),b=hsh(x1,yi),c=hsh(x0,yi+1),d=hsh(x1,yi+1);return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy}
+function fbm(lon,lat){let s=0,amp=.5,f=1;for(let o=0;o<5;o++){s+=amp*vn((lon+180)/22.5*f,(lat+90)/22.5*f+o*17,16*f);amp*=.5;f*=2}return s}
+function mask(lon,lat){let m=0;for(const q of MR){const dl=((lon-q.o+540)%360)-180,da=lat-q.a;if(Math.abs(da)>q.ry*1.5||Math.abs(dl)>q.rx*1.5)continue;const u=dl/q.rx,v=da/q.ry,an=Math.atan2(v,u),f=1+.2*(.5*Math.sin(2*an+q.s)+.3*Math.sin(3*an+q.s*1.7)+.2*Math.sin(5*an+q.s*2.3)),d=Math.hypot(u,v);m=Math.max(m,cl((f-d)/(.12*f),0,1))}return m}
+function dist(a,b,c,d){const p=a*rad,q=c*rad;return RM*Math.acos(cl(Math.sin(p)*Math.sin(q)+Math.cos(p)*Math.cos(q)*Math.cos((b-d)*rad),-1,1))}
+function bowl(la,lo,D){const R=D/2,dp=Math.min(5,.07*Math.pow(D,.9)),cs=Math.max(.12,Math.cos(la*rad)),hw=Math.min(GW/2,Math.ceil(R*1.4/(KM*cs)/STEP)),hh=Math.ceil(R*1.4/KM/STEP),j0=Math.floor((90-la)/STEP),i0=Math.floor((lo+180)/STEP);
+for(let dj=-hh;dj<=hh;dj++){const j=j0+dj;if(j<0||j>=GH)continue;const lat=90-(j+.5)*STEP;
+for(let di=-hw;di<=hw;di++){const i=((i0+di)%GW+GW)%GW,lon=-180+(i+.5)*STEP,u=dist(lat,lon,la,lo)/R;if(u>1.4)continue;
+let v=u<1?-dp*(1-u*u):0;v+=.3*dp*Math.exp(-(((u-1.02)/.12)**2));if(D>40)v+=.25*dp*Math.exp(-((u/.1)**2));E[j*GW+i]+=v}}}
+function synth(){real=false;
+for(let j=0;j<GH;j++){const lat=90-(j+.5)*STEP;for(let i=0;i<GW;i++){const lon=-180+(i+.5)*STEP,k=j*GW+i,e=(fbm(lon,lat)-.48)*3.2+1.8*sm(cl((Math.abs(lon)-70)/60,0,1)),m=mask(lon,lat);M[k]=m;E[k]=e*(1-.8*m)-2.4*m}}
+CR.forEach(c=>bowl(c[1],c[2],c[3]));
+const r=rng(7);for(let n=0;n<450;n++){bowl(Math.asin(2*r()-1)/rad,r()*360-180,Math.min(70,12*Math.pow(1-r(),-1/1.8)))}}
+function shade(){hs=hs||document.createElement('canvas');hs.width=GW;hs.height=GH;const x=hs.getContext('2d'),im=x.createImageData(GW,GH),d=im.data,ca=Math.cos(35*rad),sa=Math.sin(35*rad),lx=-.7071*ca,ly=.7071*ca;
+for(let j=0;j<GH;j++){const lat=90-(j+.5)*STEP,dx=2*KM*STEP*Math.max(.25,Math.cos(lat*rad)),dy=2*KM*STEP;
+for(let i=0;i<GW;i++){const k=j*GW+i,zx=(E[j*GW+Math.min(i+1,GW-1)]-E[j*GW+Math.max(i-1,0)])/dx*6,zy=-(E[Math.min(j+1,GH-1)*GW+i]-E[Math.max(j-1,0)*GW+i])/dy*6,nn=Math.hypot(zx,zy,1),sh=Math.max(0,(-zx*lx-zy*ly+sa)/nn),b=cl(.55+1.5*(sh-sa),.15,1.3),t=real?cl((E[k]+3)/4,0,1):1-M[k],al=62+66*t,o=k*4;
+d[o]=al*b*.97;d[o+1]=al*b*.99;d[o+2]=al*b*1.05;d[o+3]=255}}x.putImageData(im,0,0)}
+function contours(){cont=[];let mn=1e9,mx=-1e9;for(const v of E){if(v<mn)mn=v;if(v>mx)mx=v}
+const T4=[[],[3,0],[0,1],[3,1],[1,2],[3,0,1,2],[0,2],[3,2],[2,3],[0,2],[0,1,2,3],[2,1],[3,1],[0,1],[3,0],[]];
+for(let L=Math.ceil(mn);L<=mx;L++){const p=new Path2D();
+for(let j=0;j<GH-1;j++)for(let i=0;i<GW-1;i++){const a=E[j*GW+i],b=E[j*GW+i+1],c=E[(j+1)*GW+i+1],d=E[(j+1)*GW+i],m=(a>L?1:0)|(b>L?2:0)|(c>L?4:0)|(d>L?8:0);if(m===0||m===15)continue;
+const P=e=>e===0?[i+(L-a)/(b-a),j]:e===1?[i+1,j+(L-b)/(c-b)]:e===2?[i+(L-d)/(c-d),j+1]:[i,j+(L-a)/(d-a)],t=T4[m];
+for(let q=0;q<t.length;q+=2){const u=P(t[q]),v=P(t[q+1]);p.moveTo((u[0]+.5)*S,(u[1]+.5)*S);p.lineTo((v[0]+.5)*S,(v[1]+.5)*S)}}
+cont.push({p,idx:L%5===0})}}
+function F(sz,it,ls){g.font=(it?'italic ':'')+'500 '+sz+'px system-ui,"Segoe UI",Roboto,sans-serif';if('letterSpacing' in g)g.letterSpacing=ls+'px'}
+function T(s,x,y,sz,col,al,ls,it){F(sz,it,ls||0);g.textAlign=al||'center';g.textBaseline='middle';g.lineWidth=sz/4;g.lineJoin='round';g.strokeStyle='rgba(10,12,15,.88)';g.strokeText(s,x,y);g.fillStyle=col;g.fillText(s,x,y)}
+function grid(){g.lineWidth=1.2;for(let o=-180;o<=180;o+=15){g.strokeStyle=o===0?'rgba(170,195,220,.6)':o%30?'rgba(170,195,220,.16)':'rgba(170,195,220,.32)';g.beginPath();g.moveTo(X(o),0);g.lineTo(X(o),H);g.stroke()}
+for(let a=-90;a<=90;a+=15){g.strokeStyle=a===0?'rgba(170,195,220,.6)':a%30?'rgba(170,195,220,.16)':'rgba(170,195,220,.32)';g.beginPath();g.moveTo(0,Y(a));g.lineTo(W,Y(a));g.stroke()}
+for(let o=-150;o<=150;o+=30)T(o===0?'0°':o>0?o+'° E':-o+'° O',X(o),18,18,'#C9D6E4');
+for(let a=-60;a<=60;a+=30){const s=a===0?'0°':a>0?a+'° N':-a+'° S';T(s,8,Y(a)-12,18,'#C9D6E4','left');T(s,W-8,Y(a)-12,18,'#C9D6E4','right')}}
+function maria(){for(const q of MR){const x=X(q.o),y=Y(q.a),ry=q.ry*PPD,small=q.ew<200;let sz=small?20:34,ls=small?1:8;const mw=q.rx*PPD*1.8;
+if(!small){for(;sz>16;sz-=2){F(sz,false,ls);if(g.measureText(q.u).width<=mw)break}}
+T(q.u,x,small?y+ry+16:y,sz,'rgba(238,242,247,.95)','center',ls)}
+T('Cuenca Polo Sur–Aitken',X(-169),Y(-53),26,'rgba(222,228,235,.8)','center',4,true)}
+function craters(){const col='#BFE0FF';for(const c of CR){const n=c[0],la=c[1],lo=c[2],D=c[3],sd=c[4],x=X(lo),y=Y(la);
+if(sd==='p'){g.fillStyle=col;g.beginPath();g.moveTo(x,y-11);g.lineTo(x-9,y+4);g.lineTo(x+9,y+4);g.closePath();g.fill();T(n,x,y-30,22,col);continue}
+const rx=Math.max(5,D/2/(KM*Math.max(.15,Math.cos(la*rad)))*PPD),ry=Math.max(5,D/2/KM*PPD);
+g.strokeStyle='rgba(210,235,255,.9)';g.lineWidth=2.4;g.beginPath();g.ellipse(x,y,rx,ry,0,0,7);g.stroke();
+if(sd==='r')T(n,x+rx+10,y,22,col,'left');else if(sd==='l')T(n,x-rx-10,y,22,col,'right');else if(sd==='t')T(n,x,y-ry-16,22,col);else T(n,x,y+ry+16,22,col)}}
+function sites(){for(const f of FT){if(f.k!=='sitio')continue;const x=X(f.lo),y=Y(f.la);g.beginPath();for(let i=0;i<10;i++){const r=i%2?5:12,a=-Math.PI/2+i*Math.PI/5;g[i?'lineTo':'moveTo'](x+r*Math.cos(a),y+r*Math.sin(a))}g.closePath();g.fillStyle='#FFD166';g.strokeStyle='#14171B';g.lineWidth=2.5;g.stroke();g.fill();const l=f.sd==='l';T(f.es,x+(l?-18:18),y,20,'#FFD166',l?'right':'left')}}
+function frame(){g.strokeStyle='rgba(255,255,255,.5)';g.lineWidth=4;g.strokeRect(2,2,W-4,H-4);
+const x0=60,y0=H-70,len=1000/KM*PPD;g.strokeStyle='#fff';g.lineWidth=3;g.beginPath();g.moveTo(x0,y0);g.lineTo(x0+len,y0);[0,.5,1].forEach(f=>{g.moveTo(x0+len*f,y0-9);g.lineTo(x0+len*f,y0+9)});g.stroke();
+T('0',x0,y0-24,18,'#fff');T('500',x0+len/2,y0-24,18,'#fff');T('1000 km (ecuador)',x0+len,y0-24,18,'#fff','left');
+T('PROYECCIÓN EQUIRRECTANGULAR · R = 1737,4 km · COORDENADAS SELENOGRÁFICAS',W/2,H-24,18,'#C9D6E4','center',2)}
+function draw(){const on=id=>document.getElementById(id).checked;g.fillStyle='#14171B';g.fillRect(0,0,W,H);
+if(on('lr')){g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(photo||hs,0,0,W,H)}
+if(on('lc'))for(const c of cont){g.strokeStyle=c.idx?'rgba(255,255,255,.9)':'rgba(255,255,255,.5)';g.lineWidth=c.idx?2.2:1.1;g.stroke(c.p)}
+if(on('lg'))grid();if(on('lm'))maria();if(on('lk'))craters();if(on('ls'))sites();hl();frame()}
+function rebuild(msg){shade();contours();draw();st.textContent=msg;if(sel)panel(sel)}
+['lr','lc','lg','lm','lk','ls'].forEach(id=>document.getElementById(id).addEventListener('change',draw));
+document.getElementById('syn').addEventListener('click',()=>{st.textContent='Calculando relieve…';setTimeout(()=>{synth();rebuild('Mostrando relieve y curvas sintéticos.')},30)});
+document.getElementById('dem').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;st.textContent='Procesando DEM…';
+try{const bm=await createImageBitmap(f),oc=document.createElement('canvas');oc.width=GW;oc.height=GH;const x=oc.getContext('2d');x.drawImage(bm,0,0,GW,GH);const d=x.getImageData(0,0,GW,GH).data;
+for(let k=0;k<GW*GH;k++)E[k]=-9.1+d[k*4]/255*19.9;real=true;rebuild('DEM cargado: curvas y relieve calculados con tus datos.')}catch(err){st.textContent='No pude leer esa imagen. Usa un PNG o JPG de 8 bits en proyección equirrectangular.'}});
+cv.addEventListener('pointermove',e=>{const r=cv.getBoundingClientRect(),lo=(e.clientX-r.left)/r.width*360-180,la=90-(e.clientY-r.top)/r.height*180,i=cl(Math.floor((lo+180)/STEP),0,GW-1),j=cl(Math.floor((90-la)/STEP),0,GH-1);
+ro.textContent='Lat '+la.toFixed(1)+'° · Lon '+lo.toFixed(1)+'° · elevación '+E[j*GW+i].toFixed(1)+' km'+(real?'':' (sintética)')});
+const $=id=>document.getElementById(id),fmt=v=>v.toFixed(1).replace('.',',');
+const FT=[...MR.map(m=>({k:'mar',es:m.es,lat:m.n,la:m.a,lo:m.o,D:m.D,f:m.f,rx:m.rx,ry:m.ry})),...CR.map(c=>({k:c[3]>=300?'cuenca':'crater',es:c[0],lat:c[6],la:c[1],lo:c[2],D:c[3],f:c[5]})),{k:'cuenca',es:'Cuenca Polo Sur–Aitken',lat:'South Pole–Aitken basin',la:-53,lo:-169,D:2500,f:'La mayor y más antigua cuenca de impacto de la Luna. Chang’e 4 aterrizó dentro de ella en 2019.'}];
+const TIPO={mar:'Mar lunar (llanura de lava basáltica)',crater:'Cráter de impacto',cuenca:'Cuenca de impacto'};
+const SI=[['Apolo 11','Apollo 11',.67,23.47,1969,'NASA','r','Primer alunizaje tripulado (20 de julio): Armstrong y Aldrin en el Mar de la Tranquilidad.'],['Apolo 12','Apollo 12',-3.01,-23.42,1969,'NASA','l','Segundo alunizaje tripulado, a unos 180 m de la sonda Surveyor 3, en el Océano de las Tormentas.'],['Apolo 14','Apollo 14',-3.65,-17.47,1971,'NASA','r','Aterrizó en la región de Fra Mauro; Alan Shepard golpeó pelotas de golf en la superficie.'],['Apolo 15','Apollo 15',26.13,3.63,1971,'NASA','r','Primer uso del rover lunar, junto a los Apeninos y la grieta Hadley.'],['Apolo 16','Apollo 16',-8.97,15.5,1972,'NASA','l','Único alunizaje del programa en las tierras altas (región de Descartes).'],['Apolo 17','Apollo 17',20.19,30.77,1972,'NASA','r','Última misión tripulada a la Luna, en el valle Taurus–Littrow.'],['Luna 9','Luna 9',7.08,-64.37,1966,'URSS','l','Primer aterrizaje suave en la Luna; transmitió las primeras fotos desde la superficie.'],['Luna 16','Luna 16',-.68,56.3,1970,'URSS','r','Primera sonda robótica que devolvió muestras lunares a la Tierra.'],['Lunojod 1','Lunokhod 1',38.24,-35,1970,'URSS','l','Primer rover robótico en otro mundo, en el Mar de las Lluvias.'],['Luna 24','Luna 24',12.75,62.2,1976,'URSS','r','Última misión de muestras soviética, en el Mar de las Crisis.'],['Surveyor 1','Surveyor 1',-2.47,-43.34,1966,'NASA','l','Primer aterrizaje suave de EE. UU., precursor del programa Apolo.'],['Chang’e 3','Chang\'e 3',44.12,-19.51,2013,'China','r','Primer alunizaje suave chino; desplegó el rover Yutu en el norte del Mar de las Lluvias.'],['Chang’e 4','Chang\'e 4',-45.46,177.59,2019,'China','l','Primer aterrizaje en la cara oculta, dentro del cráter Von Kármán.'],['Chang’e 5','Chang\'e 5',43.06,-51.92,2020,'China','l','Trajo unos 1,7 kg de muestras del Océano de las Tormentas.'],['Chang’e 6','Chang\'e 6',-41.64,-153.99,2024,'China','r','Primeras muestras de la cara oculta, cuenca Polo Sur–Aitken.'],['Chandrayaan-3','Chandrayaan-3',-69.37,32.32,2023,'India (ISRO)','r','Primer alunizaje cerca del polo sur lunar.']];
+FT.push(...SI.map(a=>({k:'sitio',es:a[0],lat:a[1],la:a[2],lo:a[3],y:a[4],ag:a[5],sd:a[6],D:60,f:a[7]})));TIPO.sitio='Sitio de misión espacial';
+const cf=(la,lo)=>Math.abs(la).toFixed(2).replace('.',',')+'° '+(la>=0?'N':'S')+', '+Math.abs(lo).toFixed(2).replace('.',',')+'° '+(lo>=0?'E':'O');
+const csn=f=>Math.max(.15,Math.cos(f.la*rad));
+const R0=f=>f.k==='mar'?Math.max(f.rx*KM*csn(f),f.ry*KM):f.D/2;
+function stats(f){let fp;if(f.k==='mar')fp={t:(la,lo)=>{const u=(((lo-f.lo+540)%360)-180)/(f.rx*.8),v=(la-f.la)/(f.ry*.8);return u*u+v*v<=1},hw:Math.ceil(f.rx/STEP),hh:Math.ceil(f.ry/STEP)};else{const R=f.D/2;fp={t:(la,lo)=>dist(la,lo,f.la,f.lo)<=R,hw:Math.min(GW/2,Math.ceil(R/(KM*csn(f))/STEP)),hh:Math.ceil(R/KM/STEP)}}
+const j0=Math.floor((90-f.la)/STEP),i0=Math.floor((f.lo+180)/STEP);let mn=1e9,mx=-1e9,sm0=0,n=0,sl=0;
+for(let dj=-fp.hh;dj<=fp.hh;dj++){const j=j0+dj;if(j<1||j>=GH-1)continue;const lat=90-(j+.5)*STEP,dx=2*KM*STEP*Math.max(.25,Math.cos(lat*rad)),dy=2*KM*STEP;
+for(let di=-fp.hw;di<=fp.hw;di++){const i=((i0+di)%GW+GW)%GW,lon=-180+(i+.5)*STEP;if(!fp.t(lat,lon))continue;const e=E[j*GW+i];mn=Math.min(mn,e);mx=Math.max(mx,e);sm0+=e;n++;
+sl+=Math.atan(Math.hypot((E[j*GW+(i+1)%GW]-E[j*GW+(i+GW-1)%GW])/dx,(E[(j+1)*GW+i]-E[(j-1)*GW+i])/dy))/rad}}
+return n?{mn,mx,me:sm0/n,sl:sl/n}:null}
+function prof(f){const c=$('pf'),x=c.getContext('2d'),w=c.width,h=c.height,R=R0(f)*1.5,N=140,cs=csn(f);
+const at=(dx,dy)=>{const la=f.la+dy/KM,lo=f.lo+dx/(KM*cs),i=((Math.floor((lo+180)/STEP)%GW)+GW)%GW,j=cl(Math.floor((90-la)/STEP),0,GH-1);return E[j*GW+i]};
+const A=[],B=[];let mn=1e9,mx=-1e9;for(let k=0;k<=N;k++){const t=-R+2*R*k/N,a=at(t,0),b=at(0,t);A.push(a);B.push(b);mn=Math.min(mn,a,b);mx=Math.max(mx,a,b)}
+x.fillStyle='#0E1013';x.fillRect(0,0,w,h);const px=k=>44+(w-58)*k/N,py=v=>h-28-(h-50)*(v-mn)/Math.max(.1,mx-mn);
+x.strokeStyle='#2A3038';x.lineWidth=1;x.beginPath();x.moveTo(44,26);x.lineTo(44,h-28);x.lineTo(w-14,h-28);x.stroke();
+[[A,'#7FD0FF'],[B,'#FFB86B']].forEach(p=>{x.strokeStyle=p[1];x.lineWidth=2.5;x.beginPath();p[0].forEach((v,k)=>k?x.lineTo(px(k),py(v)):x.moveTo(px(k),py(v)));x.stroke()});
+x.fillStyle='#C9D6E4';x.font='13px system-ui,sans-serif';x.textAlign='left';x.fillText(fmt(mx)+' km',4,36);x.fillText(fmt(mn)+' km',4,h-32);
+x.textAlign='center';x.fillText('−'+Math.round(R)+' km',70,h-8);x.fillText('0',px(N/2),h-8);x.fillText('+'+Math.round(R)+' km',w-50,h-8);
+x.textAlign='left';x.fillStyle='#7FD0FF';x.fillText('Oeste → Este',50,14);x.fillStyle='#FFB86B';x.fillText('Sur → Norte',180,14)}
+function crop(f){const c=$('ph'),x=c.getContext('2d'),w=c.width,h=c.height;if(!photo){c.style.display='none';$('pn0').hidden=false;return}
+c.style.display='block';$('pn0').hidden=true;const half=R0(f)*1.5/KM,hx=half/csn(f),iw=photo.width,ih=photo.height;
+x.fillStyle='#000';x.fillRect(0,0,w,h);x.drawImage(photo,(f.lo-hx+180)/360*iw,(90-f.la-half)/180*ih,2*hx/360*iw,2*half/180*ih,0,0,w,h)}
+
+function panel(f){
+    $('pn').hidden=false;
+    $('pe').textContent=f.es;
+    $('pl').textContent=f.lat+' · '+TIPO[f.k];
+    const s=stats(f),d=$('pd');
+    d.innerHTML='';
+    const row=(a,b)=>{const t=document.createElement('dt'),v=document.createElement('dd');t.textContent=a;v.textContent=b;d.append(t,v)};
+    row('Coordenadas',cf(f.la,f.lo));
+    if(f.k==='sitio'){row('Misión',f.ag+' · '+f.y);row('Terreno analizado','radio ≈ 30 km')}else row('Diámetro (catálogo)','≈ '+f.D.toLocaleString('es-CL')+' km');
+    if(s){row('Elevación mínima',fmt(s.mn)+' km');row('Elevación máxima',fmt(s.mx)+' km');row('Elevación media',fmt(s.me)+' km');row('Relieve (máx − mín)',fmt(s.mx-s.mn)+' km');row('Pendiente media (≈12 km)',s.sl.toFixed(1).replace('.',',')+'°')}
+    row('Referencia de alturas','esfera de 1737,4 km');
+    
+    const moonImg = $('moon-view-img');
+    if(moonImg) {
+        moonImg.src = 'https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg';
+    }
+
+    $('pf2').textContent=f.f;
+    $('pw').textContent=real?'Elevaciones calculadas con tu DEM.':'Elevaciones y perfil del modelo sintético: carga un DEM LOLA para cifras reales.';
+    prof(f);crop(f);imgs(f);
+    const q=encodeURIComponent(f.lat+(f.k==='mar'?' Moon':' lunar'));
+    $('lnk').innerHTML='Fotos reales y mapas: <a href="https://commons.wikimedia.org/w/index.php?search='+q+'" target="_blank" rel="noopener">Wikimedia Commons</a> · <a href="https://quickmap.lroc.asu.edu/" target="_blank" rel="noopener">LROC QuickMap</a> · <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">NASA Moon Trek</a>'
+}
+
+function hl(){if(!sel)return;const f=sel,x=X(f.lo),y=Y(f.la);g.strokeStyle='#FFD166';g.lineWidth=5;g.beginPath();
+if(f.k==='mar')g.ellipse(x,y,f.rx*PPD,f.ry*PPD,0,0,7);else g.ellipse(x,y,Math.max(14,f.D/2/(KM*csn(f))*PPD)*1.15,Math.max(14,f.D/2/KM*PPD)*1.15,0,0,7);g.stroke()}
+function flyTo(f){const m=document.querySelector('.map');m.scrollTo({left:X(f.lo)/W*cv.clientWidth-m.clientWidth/2,behavior:'smooth'})}
+function show(f,m){sel=f;draw();panel(f);if(m)flyTo(f);if(m!=='tour')$('pn').scrollIntoView({behavior:'smooth',block:'nearest'})}
+const sl0=$('sel');FT.forEach((f,i)=>{const o=document.createElement('option');o.value=i;o.textContent=f.es;sl0.appendChild(o)});
+sl0.addEventListener('change',()=>{if(sl0.value!==''){stopTour();show(FT[+sl0.value],'fly')}});
+const ov=$('ov'),o=ov.getContext('2d'),tip=$('tip'),WK={};let hov=null,dirty=false,tid=null;
+function hit(e){const r=cv.getBoundingClientRect(),px=(e.clientX-r.left)/r.width*W,py=(e.clientY-r.top)/r.height*H;let best=null,bd=1e9;
+for(const f of FT){let d;if(f.k==='mar'){const u=(((px/PPD-180-f.lo+540)%360)-180)/f.rx,v=(90-py/PPD-f.la)/f.ry;d=u*u+v*v;if(d>1)continue;d+=.5}
+else if(f.k==='sitio'){if(!$('ls').checked)continue;const u=(px-X(f.lo))/26,v=(py-Y(f.la))/26;d=u*u+v*v;if(d>1)continue;d*=.05}
+else{const u=(px-X(f.lo))/Math.max(14,f.D/2/(KM*csn(f))*PPD),v=(py-Y(f.la))/Math.max(14,f.D/2/KM*PPD);d=u*u+v*v;if(d>1.2)continue;d*=.2}
+if(d<bd){bd=d;best=f}}return best}
+cv.addEventListener('pointermove',e=>{const f=hit(e);hov=f;cv.style.cursor=f?'pointer':'default';if(f){tip.style.display='block';tip.textContent=(f.k==='sitio'?'★ ':'')+f.es+' · '+TIPO[f.k].split(' (')[0];tip.style.left=e.clientX+14+'px';tip.style.top=e.clientY+14+'px'}else tip.style.display='none'});
+cv.addEventListener('pointerleave',()=>{hov=null;tip.style.display='none'});
+cv.addEventListener('click',e=>{stopTour();const b=hit(e);if(b){sl0.value=FT.indexOf(b);show(b)}});
+function ring(f,col,w,k,fill){const x=X(f.lo),y=Y(f.la);let rx,ry;if(f.k==='mar'){rx=f.rx*PPD;ry=f.ry*PPD}else if(f.k==='sitio')rx=ry=22;else{rx=Math.max(14,f.D/2/(KM*csn(f))*PPD)*1.15;ry=Math.max(14,f.D/2/KM*PPD)*1.15}
+o.beginPath();o.ellipse(x,y,rx*k,ry*k,0,0,7);if(fill){o.fillStyle=fill;o.fill()}o.strokeStyle=col;o.lineWidth=w;o.stroke()}
+(function loop(t){const act=hov||sel;if(act||dirty){o.clearRect(0,0,W,H);dirty=!!act;if(hov)ring(hov,'#fff',4,1,'rgba(255,209,102,.22)');if(sel){const p=(t/1400)%1;ring(sel,'rgba(255,209,102,'+(1-p).toFixed(2)+')',5,1+.4*p)}}requestAnimationFrame(loop)})(0);
+const tb=$('tour');function stopTour(){if(tid){clearInterval(tid);tid=null;tb.textContent='▶ Tour de misiones'}}
+tb.addEventListener('click',()=>{if(tid){stopTour();return}const L=FT.filter(f=>f.k==='sitio');let n=0;const go=()=>{const f=L[n++%L.length];sl0.value=FT.indexOf(f);show(f,'tour')};go();tid=setInterval(go,6000);tb.textContent='■ Detener tour'});
+async function imgs(f){const gl=$('gl'),gs=$('gs');gl.innerHTML='';gs.textContent='Buscando imágenes reales…';
+try{let r=WK[f.es];if(!r){const q=f.k==='mar'?f.lat:f.k==='sitio'?f.lat+' mission Moon':f.k==='cuenca'?f.lat+' lunar basin':f.lat+' lunar crater';
+const j=await(await fetch('https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=8&prop=pageimages&piprop=thumbnail&pithumbsize=480&gsrsearch='+encodeURIComponent(q))).json();
+r=Object.values((j.query||{}).pages||{}).filter(p=>p.thumbnail).sort((a,b)=>a.index-b.index).slice(0,3);WK[f.es]=r}
+if(sel!==f)return;gl.innerHTML='';
+r.forEach(p=>{const fg=document.createElement('figure'),a=document.createElement('a'),im=document.createElement('img'),c=document.createElement('figcaption');a.href='https://en.wikipedia.org/wiki/'+encodeURIComponent(p.title.replace(/ /g,'_'));a.target='_blank';a.rel='noopener';im.src=p.thumbnail.source;im.alt=p.title;im.loading='lazy';im.onerror=()=>fg.remove();c.textContent=p.title;a.append(im);fg.append(a,c);gl.append(fg)});
+gs.textContent=r.length?'Imágenes reales de Wikipedia (NASA y otras fuentes). Clic para abrir el artículo.':'No encontré imágenes para este lugar; usa los enlaces de abajo.'}
+catch(err){if(sel===f)gs.textContent='No pude cargar las imágenes (¿sin conexión?). Usa los enlaces de abajo.'}}
+$('pho').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{photo=await createImageBitmap(f);st.textContent='Foto cargada.';draw();if(sel)crop(sel)}catch(err){st.textContent='No pude leer esa foto. Usa JPG o PNG (los TIFF no funcionan en el navegador).'}});
+
+setTimeout(()=>{synth();rebuild('Mostrando relieve y curvas sintéticos.')},30);
+
+window.enviarSeleccionTerreno = function() {
+    if (!sel) {
+        alert('Por favor, selecciona primero un terreno o cráter en el mapa.');
+        return;
+    }
+
+    const datosTerreno = {
+        id: sel.es.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+        nombre: sel.es,
+        latitud: sel.la,
+        longitud: sel.lo,
+        coordenadas: sel.lat,
+        diametro: sel.D || 'N/A',
+        tipo: TIPO[sel.k] || 'Región lunar',
+        descripcion: sel.f || '',
+        similitudSugerida: 94.8,
+        brechaRealidad: 'Baja (Análogo Óptimo)'
+    };
+
+    window.parent.postMessage({
+        type: 'SELECTION_UPDATED',
+        payload: datosTerreno
+    }, '*');
+};
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mapa marciano equirrectangular</title>
+<style>
+:root{--bg:#F1F3F6;--pn:#FFFFFF;--ink:#14181D;--mut:#46515C;--ln:#C7CED6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1013;--pn:#171A1F;--ink:#E8ECF0;--mut:#A9B2BC;--ln:#2A3038}}
+:root[data-theme="dark"]{--bg:#0E1013;--pn:#171A1F;--ink:#E8ECF0;--mut:#A9B2BC;--ln:#2A3038}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
+h1{font-size:20px;margin:0 0 4px}
+p{margin:0 0 8px;color:var(--mut)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.bar label,.bar button{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border:1px solid var(--ln);border-radius:10px;background:var(--pn);color:var(--ink);font:inherit;cursor:pointer}
+.map{overflow-x:auto;border:1px solid var(--ln);border-radius:10px;background:#0E1013}
+#wrap{position:relative;min-width:1500px}#wrap canvas{display:block;width:100%;height:auto}#wrap #ov{position:absolute;left:0;top:0;height:100%;pointer-events:none}#tip{position:fixed;z-index:5;pointer-events:none;padding:4px 8px;border-radius:6px;background:rgba(10,12,15,.92);color:#fff;font-size:13px;display:none;white-space:nowrap}#gl{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:8px 0}#gl figure{margin:0;border:1px solid var(--ln);border-radius:8px;overflow:hidden;background:var(--bg)}#gl img{display:block;width:100%;height:120px;object-fit:cover}#gl figcaption{font-size:12px;padding:4px 6px;color:var(--mut)}#gl a{color:inherit}
+#ro,#st{font-size:13px;color:var(--mut);min-height:20px;margin:8px 0}
+.note{font-size:13px}
+h2{font-size:18px;margin:0}h3{font-size:15px;margin:16px 0 6px}
+#pn{margin-top:12px;padding:14px;border:1px solid var(--ln);border-radius:10px;background:var(--pn)}
+#pn canvas{display:block;width:100%;max-width:560px;border:1px solid var(--ln);border-radius:8px;background:#0E1013}
+dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:10px 0}dt{color:var(--mut)}dd{margin:0}
+#lnk a{color:inherit}select{font:inherit;min-height:40px;background:var(--pn);color:var(--ink);border:1px solid var(--ln);border-radius:8px}
+
+/* Contenedor de la foto estática de Marte */
+.static-moon-card {
+    width: 100%;
+    height: 220px;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    background: #140804;
+    border: 1px solid var(--ln);
+    margin: 10px 0;
+}
+.static-moon-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.static-moon-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 6px 10px;
+    background: rgba(20, 8, 4, 0.88);
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--mut);
+    border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Botón de Sincronización / Simulador */
+.sync-bridge-btn {
+    background: linear-gradient(135deg, #ea580c, #c2410c);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 15px;
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.sync-bridge-btn:hover {
+    background: linear-gradient(135deg, #c2410c, #9a3412);
+    box-shadow: 0 6px 16px rgba(234, 88, 12, 0.55);
+}
+</style>
+</head>
+<body>
+<h1>Mapa marciano · proyección equirrectangular</h1>
+<p>Superficie completa de Marte, longitudes areográficas (E positivo). Desliza el mapa horizontalmente en pantallas pequeñas.</p>
+<div class="bar">
+<label><input type="checkbox" id="lr" checked> Foto / relieve</label>
+<label><input type="checkbox" id="lc" checked> Curvas de nivel</label>
+<label><input type="checkbox" id="lg" checked> Cuadrícula</label>
+<label><input type="checkbox" id="lm" checked> Llanuras y cuencas</label>
+<label><input type="checkbox" id="lk" checked> Cráteres y volcanes</label>
+<label><input type="checkbox" id="ls" checked> ★ Misiones</label>
+<label>Terreno <select id="sel"><option value="">Elige uno…</option></select></label>
+<label>Foto global Viking/MDIM (JPG/PNG) <input type="file" id="pho" accept="image/*"></label>
+<label>DEM MOLA (PNG/JPG 8 bits) <input type="file" id="dem" accept="image/*"></label>
+<button type="button" id="syn">Volver al modelo sintético</button>
+<button type="button" id="tour">▶ Tour de misiones</button>
+</div>
+<div id="st" role="status" aria-live="polite">Calculando relieve marciano…</div>
+<div class="map"><div id="wrap"><canvas id="c" width="2880" height="1440" role="img" aria-label="Mapa plano de Marte con llanuras, cuencas, volcanes, cráteres, cuadrícula y curvas de nivel"></canvas><canvas id="ov" width="2880" height="1440" aria-hidden="true"></canvas></div></div><div id="tip"></div>
+<div id="ro" aria-live="polite">Pasa el cursor sobre una llanura, cuenca, volcán, cráter o ★ misión para resaltarlo; haz clic (o elígelo en la lista) para ver su ficha, datos del terreno e imágenes reales.</div>
+
+<section id="pn" hidden>
+<h2 id="pe"></h2><p id="pl"></p>
+<dl id="pd"></dl>
+
+<!-- 1. PERFIL TOPOGRÁFICO (Ubicado en la parte superior) -->
+<h3>Perfil topográfico</h3>
+<canvas id="pf" width="640" height="220" role="img" aria-label="Perfil de elevación oeste-este y sur-norte del terreno marciano seleccionado"></canvas>
+
+<p id="pf2"></p><p id="pw" class="note"></p>
+
+<!-- 2. FOTO ESTÁTICA DE MARTE (Ubicada debajo del perfil) -->
+<div class="static-moon-card">
+    <img id="moon-view-img" src="https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg" onerror="this.src='https://placehold.co/600x220/2a120a/f97316?text=Marte+(OSIRIS+True+Color)'" alt="Foto estática de Marte" />
+    <div class="static-moon-footer">
+        <span style="color:#fb923c; font-weight:600;">FOTO ESTÁTICA MARCIANA</span>
+        <span>TEMP. MEDIA -63 °C</span>
+    </div>
+</div>
+
+<h3>Imágenes reales</h3>
+<div id="gl"></div><p id="gs" class="note"></p>
+<h3>Recorte de tu mosaico Viking / MDIM</h3>
+<canvas id="ph" width="520" height="520" role="img" aria-label="Recorte del mosaico global sobre el terreno seleccionado"></canvas>
+<p id="pn0" class="note">Carga un mosaico global con el botón “Foto global Viking/MDIM” para ver aquí un recorte real de este terreno.</p>
+
+<!-- Botón de Sincronización -->
+<button type="button" class="sync-bridge-btn" onclick="enviarSeleccionTerreno()">
+    🚀 Abrir Simulador Topográfico Detallado
+</button>
+
+<p id="lnk" class="note"></p>
+</section>
+
+<p class="note">Qué es real y qué no: nombres, coordenadas, alturas y diámetros provienen de catálogos de la UAI/USGS y son aproximados, y las formas de las llanuras y cuencas están simplificadas. Mientras no cargues datos externos, el relieve, las curvas de nivel, las elevaciones y los perfiles provienen de un modelo sintético que reproduce la dicotomía cortical marciana, Tharsis, Valles Marineris, los grandes volcanes y las cuencas de impacto. Para usar datos reales descarga del USGS Astrogeology / NASA Mars Global Surveyor el mosaico global Viking MDIM 2.1 y el modelo de elevación MOLA MEGDR, conviértelos a JPG/PNG (la elevación en escala de grises de 8 bits, de −8,2 a +21,2 km respecto al areoide) y cárgalos con los botones superiores. Las imágenes de cada ficha se consultan en Wikipedia (NASA/ESA y otras fuentes) cuando hay conexión.</p>
+
+<script>
+(()=>{
+// Constantes cartográficas y físicas de Marte (R = 3389,5 km; 1° ecuatorial ≈ 59,16 km)
+const W=2880,H=1440,PPD=W/360,KM=59.16,STEP=.4,GW=900,GH=450,S=W/GW,RM=3389.5,rad=Math.PI/180;
+const cv=document.getElementById('c'),g=cv.getContext('2d'),ro=document.getElementById('ro'),st=document.getElementById('st');
+const X=o=>(o+180)*PPD,Y=a=>(90-a)*PPD,cl=(v,a,b)=>Math.max(a,Math.min(b,v)),sm=t=>t*t*(3-2*t);
+
+// Llanuras (Planitiae), Cuencas y Mesetas (Plana)
+const MARIA=[
+  ['Vastitas Borealis','Llanura Boreal',67.5,180,3000,1200,9000,'La mayor llanura de tierras bajas de Marte; rodea toda la región polar norte unos 4 a 5 km por debajo del datum medio. La sonda Phoenix aterrizó aquí en 2008.'],
+  ['Utopia Planitia','Llanura de Utopía',46.7,117.5,1650,1650,3300,'La mayor cuenca de impacto reconocida en Marte y en el sistema solar. Lugar de aterrizaje de Viking 2 (1976) y del rover Zhurong (2021).'],
+  ['Acidalia Planitia','Llanura de Acidalia',49.8,-20.7,1500,1500,3000,'Extensa llanura oscura del hemisferio norte, al norte de los canales de desagüe de Chryse Planitia.'],
+  ['Amazonis Planitia','Llanura de Amazonis',24.8,-164.0,1400,1400,2800,'Una de las llanuras más lisas y jóvenes de Marte, cubierta por lavas y sedimentos del período Amazónico.'],
+  ['Chryse Planitia','Llanura de Chryse',28.4,-39.7,800,800,1600,'Cuenca circular donde desembocan enormes canales de inundación antiguos (Kasei, Maja y Ares Vallis). Sitio de Viking 1 y Mars Pathfinder.'],
+  ['Isidis Planitia','Llanura de Isidis',12.9,87.0,600,600,1200,'Gran cuenca de impacto al este de Syrtis Major; el cráter Jezero y el rover Perseverance se ubican en su borde occidental.'],
+  ['Elysium Planitia','Llanura de Elysium',3.0,154.7,1500,1200,3000,'Amplia llanura ecuatorial de vulcanismo reciente al sur del domo de Elysium. La estación geofísica InSight aterrizó en su sector occidental.'],
+  ['Hellas Planitia','Cuenca de Hellas',-42.4,70.5,1150,900,2300,'La cuenca de impacto visible más profunda de Marte (hasta −8,2 km respecto al datum), con frecuentes tormentas de polvo y brumas.'],
+  ['Argyre Planitia','Cuenca de Argyre',-49.7,-43.4,650,650,1300,'Gran cuenca de impacto bien conservada en las tierras altas del sur, rodeada por los macizos de Charitum y Nereidum Montes.'],
+  ['Syrtis Major Planum','Meseta de Syrtis Major',8.4,69.5,650,600,1300,'Volcán en escudo de bajo relieve y color muy oscuro por su basalto expuesto libre de polvo; fue el primer rasgo superficial documentado desde la Tierra por Huygens en 1659.'],
+  ['Meridiani Planum','Llanura de Meridiani',-0.2,-2.5,550,500,1100,'Llanura ecuatorial rica en hematita gris cristalina y sulfatos; explorada por el rover Opportunity durante casi 15 años.'],
+  ['Solis Planum','Meseta del Sol',-26.4,-90.0,900,800,1800,'Meseta volcánica elevada al sur de Valles Marineris, célebre por sus intensas tormentas de polvo regionales.'],
+  ['Hesperia Planum','Meseta de Hesperia',-22.3,110.0,800,750,1600,'Extensa meseta de lavas fisurales con crestas de compresión al noreste de Hellas; define el período Hespérico de la geología marciana.'],
+  ['Arcadia Planitia','Llanura de Arcadia',47.2,-175.7,1100,1000,2200,'Llanura septentrional al noroeste de Tharsis con flujos volcánicos jóvenes e indicios de abundante hielo subsuperficial.']
+];
+
+const MR=MARIA.map((m,i)=>({n:m[0],es:m[1],u:m[1].toUpperCase(),a:m[2],o:m[3],ew:m[4],rx:m[4]/(KM*Math.max(.25,Math.cos(m[2]*rad))),ry:m[5]/KM,s:(i+1)*1.3,D:m[6],f:m[7]}));
+
+// Volcanes ('v'), Cráteres ('r','l','t','b') y Cráteres polares ('p')
+const CR=[
+  ['Monte Olimpo',18.65,-133.8,624,'v','El mayor volcán del sistema solar, con unos 21,9 km de altura sobre el datum marciano y una caldera sumital de 80 km de ancho.',21.2,'Olympus Mons'],
+  ['Ascraeus Mons',11.9,-104.5,456,'v','El más septentrional y alto de los tres grandes volcanes alineados de Tharsis Montes, alcanzando más de 18 km de altitud.',18.1,'Ascraeus Mons'],
+  ['Pavonis Mons',1.48,-112.96,375,'v','Volcán en escudo central de la cadena Tharsis Montes, situado casi exactamente sobre el ecuador marciano.',14.0,'Pavonis Mons'],
+  ['Arsia Mons',-8.4,-120.09,435,'v','Volcán meridional de Tharsis Montes, coronado por una gigantesca caldera colapsada de 110 km de diámetro.',17.7,'Arsia Mons'],
+  ['Elysium Mons',25.02,147.21,410,'v','Volcán principal de la provincia volcánica de Elysium, que se eleva unos 14 km sobre las llanuras circundantes.',14.1,'Elysium Mons'],
+  ['Alba Mons',40.5,-109.9,1015,'v','Inmenso volcán de pendientes muy suaves y extenso sistema de fosas tectónicas al norte del abultamiento de Tharsis.',6.8,'Alba Mons'],
+  ['Jezero',18.38,77.58,45,'r','Antiguo cráter lacustre con un delta fluvial muy bien conservado; sitio de aterrizaje del rover Perseverance y el helicóptero Ingenuity.',0,'Jezero (crater)'],
+  ['Gale',-5.4,137.8,154,'r','Cráter con un gran monte central estratificado de 5,5 km de altura (Aeolis Mons / Monte Sharp), explorado por el rover Curiosity.',0,'Gale (crater)'],
+  ['Gusev',-14.5,175.4,166,'l','Antiguo cráter lacustre conectado al gran canal Ma’adim Vallis; explorado por el rover Spirit a partir de 2004.',0,'Gusev (crater)'],
+  ['Schiaparelli',-2.7,16.7,459,'r','Gran cuenca de impacto cerca del ecuador, al este de Meridiani Planum, rellena de capas sedimentarias y dunas.',0,'Schiaparelli (Martian crater)'],
+  ['Huygens',-13.9,55.6,467,'r','Uno de los mayores cráteres de impacto de las tierras altas del sur, con anillo interior bien preservado y carbonatos expuestos.',0,'Huygens (crater)'],
+  ['Cassini',23.8,32.1,408,'r','Gran cráter antiguo en Arabia Terra cuyo borde ha sido intensamente erosionado por antiguos procesos fluviales.',0,'Cassini (Martian crater)'],
+  ['Holden',-26.0,-34.0,153,'l','Cráter con abanicos aluviales y megabrechas lacustres atravesado por el sistema fluvial de Uzboi Vallis.',0,'Holden (Martian crater)'],
+  ['Korolev',72.8,164.5,82,'p','Cráter cercano al polo norte relleno permanentemente por un domo de hielo de agua de 1,8 km de espesor durante todo el año.',0,'Korolev (Martian crater)'],
+  ['Herschel',-14.9,129.7,298,'r','Gran cuenca de impacto del período Noéico en Terra Cimmeria con campos de dunas oscuras en su piso.',0,'Herschel (Martian crater)'],
+  ['Lowell',-52.3,-81.4,203,'r','Cráter de impacto con un nítido anillo de picos concéntrico en la región austral de Aonia Terra.',0,'Lowell (Martian crater)']
+];
+
+const E=new Float32Array(GW*GH),M=new Float32Array(GW*GH);let real=false,hs=null,cont=[],photo=null,sel=null;
+
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const hsh=(x,y)=>{let h=Math.imul(x,374761393)^Math.imul(y,668265263);h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967295};
+function vn(x,y,w){const xi=Math.floor(x),yi=Math.floor(y),fx=sm(x-xi),fy=sm(y-yi),x0=((xi%w)+w)%w,x1=(x0+1)%w,a=hsh(x0,yi),b=hsh(x1,yi),c=hsh(x0,yi+1),d=hsh(x1,yi+1);return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy}
+function fbm(lon,lat){let s=0,amp=.5,f=1;for(let o=0;o<5;o++){s+=amp*vn((lon+180)/22.5*f,(lat+90)/22.5*f+o*17,16*f);amp*=.5;f*=2}return s}
+
+function mask(lon,lat){
+  let m=0;
+  for(const q of MR){
+    const dl=((lon-q.o+540)%360)-180,da=lat-q.a;
+    if(Math.abs(da)>q.ry*1.5||Math.abs(dl)>q.rx*1.5)continue;
+    const u=dl/q.rx,v=da/q.ry,an=Math.atan2(v,u),f=1+.18*(.5*Math.sin(2*an+q.s)+.3*Math.sin(3*an+q.s*1.7)+.2*Math.sin(5*an+q.s*2.3)),d=Math.hypot(u,v);
+    m=Math.max(m,cl((f-d)/(.15*f),0,1));
+  }
+  return m;
+}
+
+function dist(a,b,c,d){const p=a*rad,q=c*rad;return RM*Math.acos(cl(Math.sin(p)*Math.sin(q)+Math.cos(p)*Math.cos(q)*Math.cos((b-d)*rad),-1,1))}
+
+// Cráter de impacto sintético
+function bowl(la,lo,D,dpOverride){
+  const R=D/2,dp=dpOverride||Math.min(4.2,.05*Math.pow(D,.82)),cs=Math.max(.12,Math.cos(la*rad)),hw=Math.min(GW/2,Math.ceil(R*1.4/(KM*cs)/STEP)),hh=Math.ceil(R*1.4/KM/STEP),j0=Math.floor((90-la)/STEP),i0=Math.floor((lo+180)/STEP);
+  for(let dj=-hh;dj<=hh;dj++){
+    const j=j0+dj;if(j<0||j>=GH)continue;const lat=90-(j+.5)*STEP;
+    for(let di=-hw;di<=hw;di++){
+      const i=((i0+di)%GW+GW)%GW,lon=-180+(i+.5)*STEP,u=dist(lat,lon,la,lo)/R;if(u>1.4)continue;
+      let v=u<1?-dp*(1-u*u):0;
+      v+=.28*dp*Math.exp(-(((u-1.03)/.13)**2));
+      if(D>80&&D<500)v+=.2*dp*Math.exp(-((u/.11)**2));
+      E[j*GW+i]+=v;
+    }
+  }
+}
+
+// Volcán en escudo marciano con caldera sumital
+function cone(la,lo,D,peakH){
+  const R=D/2,cs=Math.max(.12,Math.cos(la*rad)),hw=Math.min(GW/2,Math.ceil(R*1.5/(KM*cs)/STEP)),hh=Math.ceil(R*1.5/KM/STEP),j0=Math.floor((90-la)/STEP),i0=Math.floor((lo+180)/STEP);
+  for(let dj=-hh;dj<=hh;dj++){
+    const j=j0+dj;if(j<0||j>=GH)continue;const lat=90-(j+.5)*STEP;
+    for(let di=-hw;di<=hw;di++){
+      const i=((i0+di)%GW+GW)%GW,lon=-180+(i+.5)*STEP,u=dist(lat,lon,la,lo)/R;if(u>1.45)continue;
+      const base=E[j*GW+i],dh=Math.max(2,peakH-base);
+      let v=u<1.35?dh*Math.exp(-2.1*u*u)*(1-.15*u):0;
+      if(u<.16)v-=dh*.14*(1-(u/.16)**2); // Caldera central
+      E[j*GW+i]+=v;
+    }
+  }
+}
+
+function synth(){
+  real=false;
+  for(let j=0;j<GH;j++){
+    const lat=90-(j+.5)*STEP;
+    for(let i=0;i<GW;i++){
+      const lon=-180+(i+.5)*STEP,k=j*GW+i;
+      // Dicotomía global marciana: tierras bajas al norte (-4.2 km) y tierras altas al sur (+2.2 km)
+      const dicLat=12-22*Math.cos((lon-35)*rad)-8*Math.sin(2*(lon+20)*rad);
+      const dic=sm(cl((lat-dicLat+22)/44,0,1));
+      let e=(1-dic)*2.1 + dic*(-4.1) + (fbm(lon,lat)-.48)*2.6;
+
+      // Abultamiento de Tharsis
+      const dTh=dist(lat,lon,-2,-112)/2800;
+      if(dTh<1.4) e+=5.2*Math.exp(-1.8*dTh*dTh);
+
+      // Levantamiento volcánico de Elysium
+      const dEl=dist(lat,lon,23,148)/1400;
+      if(dEl<1.3) e+=3.1*Math.exp(-2.1*dEl*dEl);
+
+      // Meseta de Syrtis Major
+      const dSy=dist(lat,lon,8.4,69.5)/750;
+      if(dSy<1.2) e+=1.6*Math.exp(-2.0*dSy*dSy);
+
+      // Valles Marineris (sistema de cañones tectónicos de 4000 km)
+      if(lon>-98&&lon<-32&&lat>-24&&lat<2){
+        const axisLat=-12.5+2.8*Math.sin((lon+65)*3.2*rad)-1.5*((lon+65)/30);
+        const wLat=2.6+1.4*Math.exp(-(((lon+68)/14)**2));
+        const dy=Math.abs(lat-axisLat)/wLat;
+        const xEnv=sm(cl((lon+96)/8,0,1))*sm(cl((-34-lon)/8,0,1));
+        if(dy<1.4) e-=6.8*xEnv*Math.exp(-1.9*dy*dy);
+      }
+
+      // Casquetes polares (Planum Boreum y Planum Australe)
+      if(lat>80) e+=2.4*sm((lat-80)/10);
+      if(lat<-80) e+=2.2*sm((-lat-80)/10);
+
+      const m=mask(lon,lat);
+      M[k]=m;
+      E[k]=e;
+    }
+  }
+  // Grandes cuencas de impacto profundas
+  bowl(-42.4,70.5,2200,8.4);   // Hellas Planitia
+  bowl(-49.7,-43.4,1300,5.6);  // Argyre Planitia
+  bowl(12.9,87.0,1150,3.4);    // Isidis Planitia
+  bowl(46.7,117.5,3200,2.2);   // Utopia Planitia
+  bowl(28.4,-39.7,1500,2.0);   // Chryse Planitia
+
+  // Volcanes y cráteres del catálogo
+  CR.forEach(c=>{
+    if(c[4]==='v') cone(c[1],c[2],c[3],c[6]);
+    else bowl(c[1],c[2],c[3]);
+  });
+  // Domo polar de hielo en Korolev
+  cone(72.8,164.5,68,-2.2);
+
+  // Cráteres de fondo (más abundantes en las tierras altas del sur)
+  const r=rng(42);
+  for(let n=0;n<480;n++){
+    const u=r(),la=Math.asin(2*Math.pow(u,1.35)-1)/rad,lo=r()*360-180;
+    const D=Math.min(140,16*Math.pow(1-r(),-1/1.85));
+    bowl(la,lo,D);
+  }
+}
+
+function shade(){
+  hs=hs||document.createElement('canvas');hs.width=GW;hs.height=GH;
+  const x=hs.getContext('2d'),im=x.createImageData(GW,GH),d=im.data,ca=Math.cos(35*rad),sa=Math.sin(35*rad),lx=-.7071*ca,ly=.7071*ca;
+  for(let j=0;j<GH;j++){
+    const lat=90-(j+.5)*STEP,dx=2*KM*STEP*Math.max(.25,Math.cos(lat*rad)),dy=2*KM*STEP;
+    for(let i=0;i<GW;i++){
+      const k=j*GW+i,e=E[k];
+      const zx=(E[j*GW+Math.min(i+1,GW-1)]-E[j*GW+Math.max(i-1,0)])/dx*9,zy=-(E[Math.min(j+1,GH-1)*GW+i]-E[Math.max(j-1,0)*GW+i])/dy*9;
+      const nn=Math.hypot(zx,zy,1),sh=Math.max(0,(-zx*lx-zy*ly+sa)/nn),b=cl(.52+1.48*(sh-sa),.16,1.32);
+
+      // Coloración hipsométrica y de albedo marciano (tonos basálticos, ocre-óxido y cumbres volcánicas)
+      const t=cl((e+6.5)/16,0,1),hi=cl((e-7)/14,0,1);
+      const dk=real?0:.22*M[k];
+      let R=(116+86*t+28*hi)*(1-dk),G=(58+54*t+46*hi)*(1-dk),B=(40+32*t+48*hi)*(1-dk);
+
+      // Hielo en casquetes polares extremos
+      const pol=sm(cl((Math.abs(lat)-81)/8,0,1));
+      if(pol>0){R=R*(1-pol)+228*pol;G=G*(1-pol)+224*pol;B=B*(1-pol)+230*pol}
+
+      const o=k*4;
+      d[o]=cl(R*b,0,255);
+      d[o+1]=cl(G*b,0,255);
+      d[o+2]=cl(B*b,0,255);
+      d[o+3]=255;
+    }
+  }
+  x.putImageData(im,0,0);
+}
+
+function contours(){
+  cont=[];let mn=1e9,mx=-1e9;for(const v of E){if(v<mn)mn=v;if(v>mx)mx=v}
+  const T4=[[],[3,0],[0,1],[3,1],[1,2],[3,0,1,2],[0,2],[3,2],[2,3],[0,2],[0,1,2,3],[2,1],[3,1],[0,1],[3,0],[]];
+  // Intervalo de 2 km (curvas maestras cada 6 km) para abarcar los ~29 km de desnivel marciano
+  for(let L=Math.ceil(mn/2)*2;L<=mx;L+=2){
+    const p=new Path2D();
+    for(let j=0;j<GH-1;j++)for(let i=0;i<GW-1;i++){
+      const a=E[j*GW+i],b=E[j*GW+i+1],c=E[(j+1)*GW+i+1],d=E[(j+1)*GW+i],m=(a>L?1:0)|(b>L?2:0)|(c>L?4:0)|(d>L?8:0);
+      if(m===0||m===15)continue;
+      const P=e=>e===0?[i+(L-a)/(b-a),j]:e===1?[i+1,j+(L-b)/(c-b)]:e===2?[i+(L-d)/(c-d),j+1]:[i,j+(L-a)/(d-a)],t=T4[m];
+      for(let q=0;q<t.length;q+=2){const u=P(t[q]),v=P(t[q+1]);p.moveTo((u[0]+.5)*S,(u[1]+.5)*S);p.lineTo((v[0]+.5)*S,(v[1]+.5)*S)}
+    }
+    cont.push({p,idx:L%6===0});
+  }
+}
+
+function F(sz,it,ls){g.font=(it?'italic ':'')+'500 '+sz+'px system-ui,"Segoe UI",Roboto,sans-serif';if('letterSpacing' in g)g.letterSpacing=ls+'px'}
+function T(s,x,y,sz,col,al,ls,it){F(sz,it,ls||0);g.textAlign=al||'center';g.textBaseline='middle';g.lineWidth=sz/4;g.lineJoin='round';g.strokeStyle='rgba(12,9,7,.88)';g.strokeText(s,x,y);g.fillStyle=col;g.fillText(s,x,y)}
+
+function grid(){
+  g.lineWidth=1.2;
+  for(let o=-180;o<=180;o+=15){g.strokeStyle=o===0?'rgba(255,215,185,.6)':o%30?'rgba(255,215,185,.15)':'rgba(255,215,185,.3)';g.beginPath();g.moveTo(X(o),0);g.lineTo(X(o),H);g.stroke()}
+  for(let a=-90;a<=90;a+=15){g.strokeStyle=a===0?'rgba(255,215,185,.6)':a%30?'rgba(255,215,185,.15)':'rgba(255,215,185,.3)';g.beginPath();g.moveTo(0,Y(a));g.lineTo(W,Y(a));g.stroke()}
+  for(let o=-150;o<=150;o+=30)T(o===0?'0°':o>0?o+'° E':-o+'° O',X(o),18,18,'#F3D5C1');
+  for(let a=-60;a<=60;a+=30){const s=a===0?'0°':a>0?a+'° N':-a+'° S';T(s,8,Y(a)-12,18,'#F3D5C1','left');T(s,W-8,Y(a)-12,18,'#F3D5C1','right')}
+}
+
+function maria(){
+  for(const q of MR){
+    const x=X(q.o===180?0:q.o),y=Y(q.a),ry=q.ry*PPD,small=q.ew<650;
+    let sz=small?20:32,ls=small?1:7;const mw=q.rx*PPD*1.8;
+    if(!small){for(;sz>16;sz-=2){F(sz,false,ls);if(g.measureText(q.u).width<=mw)break}}
+    T(q.u,x,small?y+ry+16:y,sz,'rgba(255,244,234,.94)','center',ls);
+  }
+  T('VALLES MARINERIS',X(-59.2),Y(-13.9),28,'rgba(255,228,196,.95)','center',5,true);
+  T('THARSIS MONTES',X(-112),Y(2),24,'rgba(255,220,185,.78)','center',4,true);
+}
+
+function craters(){
+  for(const c of CR){
+    const n=c[0],la=c[1],lo=c[2],D=c[3],sd=c[4],x=X(lo),y=Y(la);
+    if(sd==='p'){
+      const col='#BFE0FF';
+      g.fillStyle=col;g.beginPath();g.moveTo(x,y-11);g.lineTo(x-9,y+4);g.lineTo(x+9,y+4);g.closePath();g.fill();
+      T(n,x,y-30,22,col);continue;
+    }
+    const rx=Math.max(6,D/2/(KM*Math.max(.15,Math.cos(la*rad)))*PPD),ry=Math.max(6,D/2/KM*PPD);
+    if(sd==='v'){
+      const col='#FFAD75';
+      g.strokeStyle='rgba(255,173,117,.92)';g.lineWidth=2.8;
+      g.beginPath();g.ellipse(x,y,rx,ry,0,0,7);g.stroke();
+      // Triángulo volcánico central
+      g.fillStyle=col;g.beginPath();g.moveTo(x,y-10);g.lineTo(x-9,y+7);g.lineTo(x+9,y+7);g.closePath();g.fill();
+      T('▲ '+n,x+rx+10,y,22,col,'left');
+      continue;
+    }
+    const col='#BFE0FF';
+    g.strokeStyle='rgba(210,235,255,.9)';g.lineWidth=2.4;g.beginPath();g.ellipse(x,y,rx,ry,0,0,7);g.stroke();
+    if(sd==='r')T(n,x+rx+10,y,22,col,'left');
+    else if(sd==='l')T(n,x-rx-10,y,22,col,'right');
+    else if(sd==='t')T(n,x,y-ry-16,22,col);
+    else T(n,x,y+ry+16,22,col);
+  }
+}
+
+function sites(){
+  for(const f of FT){
+    if(f.k!=='sitio')continue;
+    const x=X(f.lo),y=Y(f.la);
+    g.beginPath();
+    for(let i=0;i<10;i++){const r=i%2?5:12,a=-Math.PI/2+i*Math.PI/5;g[i?'lineTo':'moveTo'](x+r*Math.cos(a),y+r*Math.sin(a))}
+    g.closePath();g.fillStyle='#FFD166';g.strokeStyle='#14171B';g.lineWidth=2.5;g.stroke();g.fill();
+    const l=f.sd==='l';T(f.es,x+(l?-18:18),y,20,'#FFD166',l?'right':'left');
+  }
+}
+
+function frame(){
+  g.strokeStyle='rgba(255,255,255,.5)';g.lineWidth=4;g.strokeRect(2,2,W-4,H-4);
+  const x0=60,y0=H-70,len=2000/KM*PPD;
+  g.strokeStyle='#fff';g.lineWidth=3;g.beginPath();g.moveTo(x0,y0);g.lineTo(x0+len,y0);
+  [0,.5,1].forEach(f=>{g.moveTo(x0+len*f,y0-9);g.lineTo(x0+len*f,y0+9)});g.stroke();
+  T('0',x0,y0-24,18,'#fff');T('1000',x0+len/2,y0-24,18,'#fff');T('2000 km (ecuador)',x0+len,y0-24,18,'#fff','left');
+  T('PROYECCIÓN EQUIRRECTANGULAR · R = 3389,5 km · COORDENADAS AREOGRÁFICAS',W/2,H-24,18,'#F3D5C1','center',2);
+}
+
+function draw(){
+  const on=id=>document.getElementById(id).checked;
+  g.fillStyle='#1A0E0A';g.fillRect(0,0,W,H);
+  if(on('lr')){g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(photo||hs,0,0,W,H)}
+  if(on('lc'))for(const c of cont){g.strokeStyle=c.idx?'rgba(255,245,235,.85)':'rgba(255,245,235,.42)';g.lineWidth=c.idx?2.2:1.1;g.stroke(c.p)}
+  if(on('lg'))grid();
+  if(on('lm'))maria();
+  if(on('lk'))craters();
+  if(on('ls'))sites();
+  hl();frame();
+}
+
+function rebuild(msg){shade();contours();draw();st.textContent=msg;if(sel)panel(sel)}
+
+['lr','lc','lg','lm','lk','ls'].forEach(id=>document.getElementById(id).addEventListener('change',draw));
+
+document.getElementById('syn').addEventListener('click',()=>{
+  st.textContent='Calculando relieve marciano…';
+  setTimeout(()=>{synth();rebuild('Mostrando relieve y curvas sintéticos de Marte.')},30);
+});
+
+document.getElementById('dem').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;st.textContent='Procesando DEM MOLA…';
+  try{
+    const bm=await createImageBitmap(f),oc=document.createElement('canvas');oc.width=GW;oc.height=GH;
+    const x=oc.getContext('2d');x.drawImage(bm,0,0,GW,GH);const d=x.getImageData(0,0,GW,GH).data;
+    // Escala MOLA: de -8,2 km (Hellas) a +21,2 km (Monte Olimpo) -> rango de 29,4 km
+    for(let k=0;k<GW*GH;k++)E[k]=-8.2+d[k*4]/255*29.4;
+    real=true;rebuild('DEM MOLA cargado: curvas y relieve calculados con tus datos.');
+  }catch(err){
+    st.textContent='No pude leer esa imagen. Usa un PNG o JPG de 8 bits en proyección equirrectangular.';
+  }
+});
+
+cv.addEventListener('pointermove',e=>{
+  const r=cv.getBoundingClientRect(),lo=(e.clientX-r.left)/r.width*360-180,la=90-(e.clientY-r.top)/r.height*180,i=cl(Math.floor((lo+180)/STEP),0,GW-1),j=cl(Math.floor((90-la)/STEP),0,GH-1);
+  ro.textContent='Lat '+la.toFixed(1)+'° · Lon '+lo.toFixed(1)+'° · elevación '+E[j*GW+i].toFixed(1)+' km'+(real?'':' (sintética)');
+});
+
+const $=id=>document.getElementById(id),fmt=v=>v.toFixed(1).replace('.',',');
+
+const FT=[
+  ...MR.map(m=>({k:'mar',es:m.es,lat:m.n,la:m.a,lo:m.o===180?0:m.o,D:m.D,f:m.f,rx:m.rx,ry:m.ry})),
+  ...CR.map(c=>({k:c[4]==='v'?'volcan':c[3]>=300?'cuenca':'crater',es:c[0],lat:c[7],la:c[1],lo:c[2],D:c[3],f:c[5]})),
+  {k:'canon',es:'Valles Marineris',lat:'Valles Marineris',la:-13.9,lo:-59.2,D:4000,f:'El mayor sistema de cañones tectónicos del sistema solar: unos 4.000 km de longitud, hasta 200 km de anchura y profundidades de hasta 7 km.'}
+];
+
+const TIPO={
+  mar:'Llanura o cuenca marciana (Planitia / Planum)',
+  volcan:'Volcán en escudo marciano (Mons)',
+  crater:'Cráter de impacto marciano',
+  cuenca:'Gran cuenca de impacto',
+  canon:'Sistema de cañones tectónicos (Valles)',
+  sitio:'Sitio de misión espacial en Marte'
+};
+
+const SI=[
+  ['Viking 1','Viking 1',22.48,-47.97,1976,'NASA','r','Primer aterrizaje exitoso en Marte con transmisión prolongada desde Chryse Planitia (20 de julio de 1976).'],
+  ['Viking 2','Viking 2',47.97,134.26,1976,'NASA','r','Aterrizó en Utopia Planitia, realizó experimentos biológicos y fotografió escarcha de agua en invierno.'],
+  ['Mars Pathfinder','Mars Pathfinder',19.13,-33.22,1997,'NASA','r','Aterrizó en Ares Vallis y desplegó el Sojourner, el primer rover en operar sobre Marte.'],
+  ['Spirit','Spirit (rover)',-14.57,175.47,2004,'NASA','l','Rover gemelo de Opportunity; exploró el cráter Gusev y las colinas Columbia hasta 2010.'],
+  ['Opportunity','Opportunity (rover)',-1.95,-5.53,2004,'NASA','l','Operó casi 15 años en Meridiani Planum, recorriendo 45 km y hallando hematita y evidencias de agua antigua.'],
+  ['Phoenix','Phoenix (spacecraft)',68.22,-125.7,2008,'NASA','r','Aterrizó en Vastitas Borealis y confirmó directamente hielo de agua bajo la superficie polar norte.'],
+  ['Curiosity','Curiosity (rover)',-4.59,137.44,2012,'NASA','l','Laboratorio robótico nuclear en el cráter Gale que asciende las capas sedimentarias de Aeolis Mons (Monte Sharp).'],
+  ['InSight','InSight',4.5,135.62,2018,'NASA','r','Estación geofísica en Elysium Planitia que registró más de 1.300 sismos marcianos (marsquakes) y midió el núcleo del planeta.'],
+  ['Perseverance','Perseverance (rover)',18.44,77.45,2021,'NASA','l','Explora el delta fluvial del cráter Jezero junto al helicóptero Ingenuity y recolecta muestras para su futuro retorno a la Tierra.'],
+  ['Zhurong','Zhurong (rover)',25.07,109.93,2021,'China (CNSA)','r','Primer rover chino en Marte (misión Tianwen-1); exploró el sur de Utopia Planitia.'],
+  ['Mars 3','Mars 3',-45.0,-158.0,1971,'URSS','r','Primer aterrizaje suave en la historia de Marte; transmitió desde el cráter Ptolomeo durante unos 20 segundos antes de perder contacto.']
+];
+
+FT.push(...SI.map(a=>({k:'sitio',es:a[0],lat:a[1],la:a[2],lo:a[3],y:a[4],ag:a[5],sd:a[6],D:90,f:a[7]})));
+
+const cf=(la,lo)=>Math.abs(la).toFixed(2).replace('.',',')+'° '+(la>=0?'N':'S')+', '+Math.abs(lo).toFixed(2).replace('.',',')+'° '+(lo>=0?'E':'O');
+const csn=f=>Math.max(.15,Math.cos(f.la*rad));
+const R0=f=>f.k==='mar'?Math.max(f.rx*KM*csn(f),f.ry*KM):f.D/2;
+
+function stats(f){
+  let fp;
+  if(f.k==='mar'){
+    fp={t:(la,lo)=>{const u=(((lo-f.lo+540)%360)-180)/(f.rx*.8),v=(la-f.la)/(f.ry*.8);return u*u+v*v<=1},hw:Math.ceil(f.rx/STEP),hh:Math.ceil(f.ry/STEP)};
+  }else{
+    const R=f.D/2;
+    fp={t:(la,lo)=>dist(la,lo,f.la,f.lo)<=R,hw:Math.min(GW/2,Math.ceil(R/(KM*csn(f))/STEP)),hh:Math.ceil(R/KM/STEP)};
+  }
+  const j0=Math.floor((90-f.la)/STEP),i0=Math.floor((f.lo+180)/STEP);let mn=1e9,mx=-1e9,sm0=0,n=0,sl=0;
+  for(let dj=-fp.hh;dj<=fp.hh;dj++){
+    const j=j0+dj;if(j<1||j>=GH-1)continue;const lat=90-(j+.5)*STEP,dx=2*KM*STEP*Math.max(.25,Math.cos(lat*rad)),dy=2*KM*STEP;
+    for(let di=-fp.hw;di<=fp.hw;di++){
+      const i=((i0+di)%GW+GW)%GW,lon=-180+(i+.5)*STEP;if(!fp.t(lat,lon))continue;
+      const e=E[j*GW+i];mn=Math.min(mn,e);mx=Math.max(mx,e);sm0+=e;n++;
+      sl+=Math.atan(Math.hypot((E[j*GW+(i+1)%GW]-E[j*GW+(i+GW-1)%GW])/dx,(E[(j+1)*GW+i]-E[(j-1)*GW+i])/dy))/rad;
+    }
+  }
+  return n?{mn,mx,me:sm0/n,sl:sl/n}:null;
+}
+
+function prof(f){
+  const c=$('pf'),x=c.getContext('2d'),w=c.width,h=c.height,R=Math.min(2800,R0(f)*1.5),N=140,cs=csn(f);
+  const at=(dx,dy)=>{const la=cl(f.la+dy/KM,-89.8,89.8),lo=f.lo+dx/(KM*cs),i=((Math.floor((lo+180)/STEP)%GW)+GW)%GW,j=cl(Math.floor((90-la)/STEP),0,GH-1);return E[j*GW+i]};
+  const A=[],B=[];let mn=1e9,mx=-1e9;
+  for(let k=0;k<=N;k++){const t=-R+2*R*k/N,a=at(t,0),b=at(0,t);A.push(a);B.push(b);mn=Math.min(mn,a,b);mx=Math.max(mx,a,b)}
+  x.fillStyle='#0E1013';x.fillRect(0,0,w,h);
+  const px=k=>44+(w-58)*k/N,py=v=>h-28-(h-50)*(v-mn)/Math.max(.1,mx-mn);
+  x.strokeStyle='#2A3038';x.lineWidth=1;x.beginPath();x.moveTo(44,26);x.lineTo(44,h-28);x.lineTo(w-14,h-28);x.stroke();
+  [[A,'#7FD0FF'],[B,'#FFB86B']].forEach(p=>{x.strokeStyle=p[1];x.lineWidth=2.5;x.beginPath();p[0].forEach((v,k)=>k?x.lineTo(px(k),py(v)):x.moveTo(px(k),py(v)));x.stroke()});
+  x.fillStyle='#C9D6E4';x.font='13px system-ui,sans-serif';x.textAlign='left';x.fillText(fmt(mx)+' km',4,36);x.fillText(fmt(mn)+' km',4,h-32);
+  x.textAlign='center';x.fillText('−'+Math.round(R)+' km',70,h-8);x.fillText('0',px(N/2),h-8);x.fillText('+'+Math.round(R)+' km',w-50,h-8);
+  x.textAlign='left';x.fillStyle='#7FD0FF';x.fillText('Oeste → Este',50,14);x.fillStyle='#FFB86B';x.fillText('Sur → Norte',180,14);
+}
+
+function crop(f){
+  const c=$('ph'),x=c.getContext('2d'),w=c.width,h=c.height;
+  if(!photo){c.style.display='none';$('pn0').hidden=false;return}
+  c.style.display='block';$('pn0').hidden=true;
+  const half=R0(f)*1.5/KM,hx=half/csn(f),iw=photo.width,ih=photo.height;
+  x.fillStyle='#000';x.fillRect(0,0,w,h);
+  x.drawImage(photo,(f.lo-hx+180)/360*iw,(90-f.la-half)/180*ih,2*hx/360*iw,2*half/180*ih,0,0,w,h);
+}
+
+function panel(f){
+  $('pn').hidden=false;
+  $('pe').textContent=f.es;
+  $('pl').textContent=f.lat+' · '+TIPO[f.k];
+  const s=stats(f),d=$('pd');
+  d.innerHTML='';
+  const row=(a,b)=>{const t=document.createElement('dt'),v=document.createElement('dd');t.textContent=a;v.textContent=b;d.append(t,v)};
+  row('Coordenadas',cf(f.la,f.lo));
+  if(f.k==='sitio'){row('Misión',f.ag+' · '+f.y);row('Terreno analizado','radio ≈ 45 km')}
+  else row('Extensión / Diámetro','≈ '+f.D.toLocaleString('es-CL')+' km');
+  if(s){
+    row('Elevación mínima',fmt(s.mn)+' km');
+    row('Elevación máxima',fmt(s.mx)+' km');
+    row('Elevación media',fmt(s.me)+' km');
+    row('Relieve (máx − mín)',fmt(s.mx-s.mn)+' km');
+    row('Pendiente media (≈24 km)',s.sl.toFixed(1).replace('.',',')+'°');
+  }
+  row('Referencia de alturas','areoide / esfera de 3389,5 km');
+
+  const marsImg = $('moon-view-img');
+  if(marsImg) {
+    marsImg.src = 'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg';
+  }
+
+  $('pf2').textContent=f.f;
+  $('pw').textContent=real?'Elevaciones calculadas con tu DEM MOLA.':'Elevaciones y perfil del modelo sintético marciano: carga un DEM MOLA para cifras reales.';
+  prof(f);crop(f);imgs(f);
+  const q=encodeURIComponent(f.lat+' Mars');
+  $('lnk').innerHTML='Fotos reales y mapas: <a href="https://commons.wikimedia.org/w/index.php?search='+q+'" target="_blank" rel="noopener">Wikimedia Commons</a> · <a href="https://mars.nasa.gov/maps/" target="_blank" rel="noopener">NASA Mars Maps</a> · <a href="https://trek.nasa.gov/mars/" target="_blank" rel="noopener">NASA Mars Trek</a>';
+}
+
+function hl(){
+  if(!sel)return;const f=sel,x=X(f.lo),y=Y(f.la);
+  g.strokeStyle='#FFD166';g.lineWidth=5;g.beginPath();
+  if(f.k==='mar')g.ellipse(x,y,f.rx*PPD,f.ry*PPD,0,0,7);
+  else g.ellipse(x,y,Math.max(14,f.D/2/(KM*csn(f))*PPD)*1.15,Math.max(14,f.D/2/KM*PPD)*1.15,0,0,7);
+  g.stroke();
+}
+
+function flyTo(f){const m=document.querySelector('.map');m.scrollTo({left:X(f.lo)/W*cv.clientWidth-m.clientWidth/2,behavior:'smooth'})}
+function show(f,m){sel=f;draw();panel(f);if(m)flyTo(f);if(m!=='tour')$('pn').scrollIntoView({behavior:'smooth',block:'nearest'})}
+
+const sl0=$('sel');
+FT.forEach((f,i)=>{const o=document.createElement('option');o.value=i;o.textContent=f.es;sl0.appendChild(o)});
+sl0.addEventListener('change',()=>{if(sl0.value!==''){stopTour();show(FT[+sl0.value],'fly')}});
+
+const ov=$('ov'),o=ov.getContext('2d'),tip=$('tip'),WK={};let hov=null,dirty=false,tid=null;
+
+function hit(e){
+  const r=cv.getBoundingClientRect(),px=(e.clientX-r.left)/r.width*W,py=(e.clientY-r.top)/r.height*H;let best=null,bd=1e9;
+  for(const f of FT){
+    let d;
+    if(f.k==='mar'){
+      const u=(((px/PPD-180-f.lo+540)%360)-180)/f.rx,v=(90-py/PPD-f.la)/f.ry;
+      d=u*u+v*v;if(d>1)continue;d+=.5;
+    }else if(f.k==='sitio'){
+      if(!$('ls').checked)continue;
+      const u=(px-X(f.lo))/26,v=(py-Y(f.la))/26;
+      d=u*u+v*v;if(d>1)continue;d*=.05;
+    }else{
+      const u=(px-X(f.lo))/Math.max(14,f.D/2/(KM*csn(f))*PPD),v=(py-Y(f.la))/Math.max(14,f.D/2/KM*PPD);
+      d=u*u+v*v;if(d>1.2)continue;d*=.2;
+    }
+    if(d<bd){bd=d;best=f}
+  }
+  return best;
+}
+
+cv.addEventListener('pointermove',e=>{
+  const f=hit(e);hov=f;cv.style.cursor=f?'pointer':'default';
+  if(f){
+    tip.style.display='block';
+    tip.textContent=(f.k==='sitio'?'★ ':f.k==='volcan'?'▲ ':'')+f.es+' · '+TIPO[f.k].split(' (')[0];
+    tip.style.left=e.clientX+14+'px';tip.style.top=e.clientY+14+'px';
+  }else tip.style.display='none';
+});
+cv.addEventListener('pointerleave',()=>{hov=null;tip.style.display='none'});
+cv.addEventListener('click',e=>{stopTour();const b=hit(e);if(b){sl0.value=FT.indexOf(b);show(b)}});
+
+function ring(f,col,w,k,fill){
+  const x=X(f.lo),y=Y(f.la);let rx,ry;
+  if(f.k==='mar'){rx=f.rx*PPD;ry=f.ry*PPD}
+  else if(f.k==='sitio')rx=ry=22;
+  else{rx=Math.max(14,f.D/2/(KM*csn(f))*PPD)*1.15;ry=Math.max(14,f.D/2/KM*PPD)*1.15}
+  o.beginPath();o.ellipse(x,y,rx*k,ry*k,0,0,7);
+  if(fill){o.fillStyle=fill;o.fill()}
+  o.strokeStyle=col;o.lineWidth=w;o.stroke();
+}
+
+(function loop(t){
+  const act=hov||sel;
+  if(act||dirty){
+    o.clearRect(0,0,W,H);dirty=!!act;
+    if(hov)ring(hov,'#fff',4,1,'rgba(255,209,102,.22)');
+    if(sel){const p=(t/1400)%1;ring(sel,'rgba(255,209,102,'+(1-p).toFixed(2)+')',5,1+.4*p)}
+  }
+  requestAnimationFrame(loop);
+})(0);
+
+const tb=$('tour');
+function stopTour(){if(tid){clearInterval(tid);tid=null;tb.textContent='▶ Tour de misiones'}}
+tb.addEventListener('click',()=>{
+  if(tid){stopTour();return}
+  const L=FT.filter(f=>f.k==='sitio');let n=0;
+  const go=()=>{const f=L[n++%L.length];sl0.value=FT.indexOf(f);show(f,'tour')};
+  go();tid=setInterval(go,6000);tb.textContent='■ Detener tour';
+});
+
+async function imgs(f){
+  const gl=$('gl'),gs=$('gs');gl.innerHTML='';gs.textContent='Buscando imágenes reales de Marte…';
+  try{
+    let r=WK[f.es];
+    if(!r){
+      const q=f.k==='mar'||f.k==='volcan'||f.k==='canon'?f.lat+' Mars':f.k==='sitio'?f.lat+' Mars':f.lat;
+      const j=await(await fetch('https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=8&prop=pageimages&piprop=thumbnail&pithumbsize=480&gsrsearch='+encodeURIComponent(q))).json();
+      r=Object.values((j.query||{}).pages||{}).filter(p=>p.thumbnail).sort((a,b)=>a.index-b.index).slice(0,3);
+      WK[f.es]=r;
+    }
+    if(sel!==f)return;
+    gl.innerHTML='';
+    r.forEach(p=>{
+      const fg=document.createElement('figure'),a=document.createElement('a'),im=document.createElement('img'),c=document.createElement('figcaption');
+      a.href='https://en.wikipedia.org/wiki/'+encodeURIComponent(p.title.replace(/ /g,'_'));
+      a.target='_blank';a.rel='noopener';im.src=p.thumbnail.source;im.alt=p.title;im.loading='lazy';
+      im.onerror=()=>fg.remove();c.textContent=p.title;a.append(im);fg.append(a,c);gl.append(fg);
+    });
+    gs.textContent=r.length?'Imágenes reales de Wikipedia (NASA/ESA y otras fuentes). Clic para abrir el artículo.':'No encontré imágenes para este lugar; usa los enlaces de abajo.';
+  }catch(err){
+    if(sel===f)gs.textContent='No pude cargar las imágenes (¿sin conexión?). Usa los enlaces de abajo.';
+  }
+}
+
+$('pho').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{photo=await createImageBitmap(f);st.textContent='Mosaico global de Marte cargado.';draw();if(sel)crop(sel)}
+  catch(err){st.textContent='No pude leer esa foto. Usa JPG o PNG (los TIFF no funcionan en el navegador).'}
+});
+
+setTimeout(()=>{synth();rebuild('Mostrando relieve y curvas sintéticos de Marte.')},30);
+
+window.enviarSeleccionTerreno = function() {
+    if (!sel) {
+        st.textContent = 'Por favor, selecciona primero una llanura, volcán, cráter o misión en el mapa.';
+        return;
+    }
+
+    const datosTerreno = {
+        id: sel.es.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+        nombre: sel.es,
+        latitud: sel.la,
+        longitud: sel.lo,
+        coordenadas: sel.lat,
+        diametro: sel.D || 'N/A',
+        tipo: TIPO[sel.k] || 'Región marciana',
+        descripcion: sel.f || '',
+        similitudSugerida: 95.4,
+        brechaRealidad: 'Baja (Análogo Marciano Óptimo)'
+    };
+
+    window.parent.postMessage({
+        type: 'SELECTION_UPDATED',
+        payload: datosTerreno
+    }, '*');
+    st.textContent = 'Selección enviada al simulador topográfico: ' + sel.es;
+};
+
+})();
+</script>
+</body>
+</html>

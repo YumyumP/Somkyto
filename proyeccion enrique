@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planetary Twin Matcher | NASA Space Apps 2026</title>
+    
+    <!-- Tailwind CSS para estilos rápidos y limpios -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS & JS para mapas satelitales interactivos -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Chart.js para el gráfico de radar científico -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Three.js para el Visor Topográfico 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        body {
+            background-color: #0b0f19;
+            color: #e2e8f0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+        #earth-map {
+            height: 100%;
+            min-height: 285px;
+            border-radius: 0.75rem;
+            z-index: 1;
+        }
+        /* Contenedor del visor 3D Three.js */
+        #canvas-3d-container {
+            width: 100%;
+            height: 210px;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            position: relative;
+            background: #020617;
+        }
+        .topo-grid {
+            background-image: 
+                linear-gradient(to right, rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .rank-card {
+            transition: all 0.2s ease-in-out;
+        }
+        .rank-card:hover {
+            transform: translateY(-2px);
+        }
+        .rank-card.active {
+            border-color: #38bdf8;
+            background: rgba(14, 165, 233, 0.15);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+        }
+        .weight-pill {
+            transition: all 0.25s ease;
+        }
+        /* Estilo personalizado para el deslizador temporal de Enero a Diciembre */
+        input[type=range].month-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(90deg, #0284c7 0%, #10b981 50%, #6366f1 100%);
+            border-radius: 999px;
+            outline: none;
+            cursor: pointer;
+        }
+        input[type=range].month-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+        input[type=range].month-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+        .month-tick {
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .month-tick:hover {
+            color: #38bdf8;
+        }
+        .month-tick.active-month {
+            color: #38bdf8;
+            font-weight: 800;
+            text-decoration: underline;
+        }
+        /* Pines personalizados del Mapa Mundial según Ranking */
+        .custom-map-pin {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-weight: 800;
+            border-radius: 9999px;
+            color: #ffffff;
+            transition: all 0.25s ease;
+            white-space: nowrap;
+        }
+        .pin-rank-1 {
+            background: linear-gradient(135deg, #10b981, #0284c7);
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 16px rgba(16, 185, 129, 0.95), 0 0 28px rgba(56, 189, 248, 0.7);
+            font-size: 11px;
+            padding: 3px 8px;
+            z-index: 1000 !important;
+            animation: pulseWinner 2s infinite;
+        }
+        .pin-rank-2 {
+            background: rgba(245, 158, 11, 0.92);
+            border: 2px solid #fef3c7;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+            font-size: 10px;
+            padding: 2px 7px;
+            z-index: 800 !important;
+        }
+        .pin-rank-3 {
+            background: rgba(100, 116, 139, 0.92);
+            border: 1.5px solid #e2e8f0;
+            box-shadow: 0 0 8px rgba(148, 163, 184, 0.4);
+            font-size: 10px;
+            padding: 2px 6px;
+            z-index: 700 !important;
+        }
+        .pin-rank-other {
+            background: rgba(51, 65, 85, 0.85);
+            border: 1px solid #94a3b8;
+            color: #cbd5e1;
+            font-size: 9px;
+            padding: 1px 5px;
+            z-index: 600 !important;
+        }
+        @keyframes pulseWinner {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Navbar Superior -->
+    <header class="glass-panel border-b border-slate-800 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-sky-500/20">
+                PTM
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-wide text-white">PLANETARY TWIN MATCHER</h1>
+                <p class="text-xs text-sky-400">Motor Matemático y Estacional Sincronizado • NASA Space Apps 2026</p>
+            </div>
+        </div>
+
+        <!-- Controles de Misión -->
+        <div class="flex flex-wrap items-center gap-3">
+            <div>
+                <label class="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">Objetivo Espacial</label>
+                <select id="target-select" class="bg-slate-900 border border-slate-700 text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                    <option value="shackleton">Luna: Cráter Shackleton (Polo Sur)</option>
+                    <option value="marius">Luna: Colinas Marius (Tubos de Lava)</option>
+                    <option value="jezero">Marte: Cráter Jezero (Delta Antiguo)</option>
+                    <option value="arcadia">Marte: Arcadia Planitia (Hielo Subsuperficial)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">Prioridad de Prueba (Vector de Pesos W)</label>
+                <select id="mission-mode" class="bg-slate-900 border border-slate-700 text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                    <option value="balanced">Equilibrado (Base Permanente — 20% c/u)</option>
+                    <option value="mobility">Movilidad y Navegación de Rovers (Topo 40% / Ilum 25%)</option>
+                    <option value="isru">Geología y Extracción ISRU (Mineralogía 50%)</option>
+                    <option value="subsurface">Hábitats Subterráneos y Radiación (Subsuelo 45% / Térm 25%)</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] w-full mx-auto">
+
+        <!-- Columna Izquierda: Objetivo Espacial & Visor 3D (4 cols) -->
+        <section class="lg:col-span-4 glass-panel rounded-2xl p-5 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <span id="planet-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                        LUNA • ARTEMIS ZONE
+                    </span>
+                    <span id="target-coords" class="text-xs font-mono text-slate-400">89.9° S, 0.0° E</span>
+                </div>
+                
+                <h2 id="target-title" class="text-xl font-bold text-white mb-2">Cráter Shackleton</h2>
+                <p id="target-desc" class="text-sm text-slate-300 leading-relaxed mb-4">
+                    Región de luz eterna en los bordes y sombra permanente (PSR) en el interior con altas reservas de hielo de agua y pendientes pronunciadas.
+                </p>
+
+                <!-- Visor Topográfico 3D con Three.js -->
+                <div class="mb-4 relative border border-slate-700 rounded-xl overflow-hidden shadow-inner">
+                    <div id="canvas-3d-container"></div>
+                    <div class="topo-grid absolute inset-0 pointer-events-none"></div>
+                    <div class="absolute bottom-2 left-2 right-2 z-10 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/80 flex justify-between items-center text-[10px]">
+                        <div>
+                            <span class="text-slate-400 uppercase block">Modelo 3D Malla Digital</span>
+                            <span id="target-dataset" class="font-mono text-sky-300">LRO LOLA + M3 + Diviner</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-slate-400 uppercase block">Temp. Media</span>
+                            <span id="target-temp" class="font-mono text-amber-300">-183 °C</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Telemetría Física Base -->
+            <div class="grid grid-cols-3 gap-2 pt-3 border-t border-slate-800 text-center">
+                <div class="bg-slate-900/70 p-2.5 rounded-lg">
+                    <p class="text-[10px] text-slate-400 uppercase">Pendiente</p>
+                    <p id="target-slope" class="text-sm font-bold text-white mt-0.5">18.5°</p>
+                </div>
+                <div class="bg-slate-900/70 p-2.5 rounded-lg">
+                    <p class="text-[10px] text-slate-400 uppercase">Mineralogía</p>
+                    <p id="target-mineral" class="text-sm font-bold text-white mt-0.5">Anortosita</p>
+                </div>
+                <div class="bg-slate-900/70 p-2.5 rounded-lg">
+                    <p class="text-[10px] text-slate-400 uppercase">Gravedad</p>
+                    <p id="target-gravity" class="text-sm font-bold text-white mt-0.5">1.62 m/s²</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Columna Central: Motor Matemático + Deslizador Temporal + Botón Mes Óptimo Dinámico + Radar (4 cols) -->
+        <section class="lg:col-span-4 glass-panel rounded-2xl p-5 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Índice de Similitud Física</h3>
+                    <span id="selected-rank-tag" class="text-xs text-sky-400 font-mono bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
+                        Candidato #1 Global
+                    </span>
+                </div>
+
+                <!-- Score Principal Calculado en Tiempo Real -->
+                <div class="flex items-baseline justify-between mb-2.5">
+                    <div class="flex items-baseline gap-2">
+                        <span id="match-score" class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-sky-400">
+                            91.5%
+                        </span>
+                        <span id="score-month-label" class="text-[11px] text-sky-300 font-medium">en Julio</span>
+                    </div>
+                    <span id="formula-breakdown" class="text-[10px] font-mono text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 px-2 py-0.5 rounded">
+                        Prox: 90.1% | Cos: 99.4%
+                    </span>
+                </div>
+
+                <!-- Deslizador de Análisis Temporal + Botón Dinámico de Mes Óptimo (PASO 4) -->
+                <div class="bg-slate-900/90 border border-sky-500/30 rounded-xl p-3 mb-2.5 shadow-inner">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1">
+                            🗓️ Análisis Temporal (Enero – Diciembre)
+                        </span>
+                        <span id="current-month-badge" class="text-xs font-extrabold text-white bg-sky-600/40 border border-sky-400/40 px-2 py-0.5 rounded">
+                            JULIO
+                        </span>
+                    </div>
+
+                    <!-- Input Range 0 (Enero) a 11 (Diciembre) -->
+                    <input id="month-slider" type="range" min="0" max="11" value="6" class="month-slider my-1.5" />
+
+                    <!-- Etiquetas clickeables de los 12 meses -->
+                    <div id="month-ticks-container" class="grid grid-cols-12 text-[9px] font-mono text-slate-400 text-center select-none mt-1">
+                        <!-- Se llena dinámicamente ENE..DIC -->
+                    </div>
+
+                    <!-- Botón Interactivo de Mes Óptimo Calculado Dinámicamente (Sin rangos fijos) -->
+                    <div class="mt-2.5 pt-2.5 border-t border-slate-800 flex flex-col gap-1.5">
+                        <div class="flex items-center justify-between text-[11px]">
+                            <span id="seasonal-status-badge" class="font-semibold text-emerald-300 truncate">
+                                🟢 Pico Estacional de Similitud
+                            </span>
+                            <span id="candidate-peak-month-label" class="text-[10px] font-mono text-slate-400">
+                                Pico sitio: Julio
+                            </span>
+                        </div>
+                        <button id="optimal-month-btn" type="button" onclick="goToOptimalMonth()" class="w-full py-1.5 px-3 rounded-lg bg-gradient-to-r from-emerald-600/30 to-sky-600/30 hover:from-emerald-500/40 hover:to-sky-500/40 border border-emerald-400/50 text-emerald-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition shadow-sm">
+                            <span>⚡</span>
+                            <span id="optimal-month-btn-text">Ver mes óptimo: Julio (93.8% de similitud)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panel Visual de Pesos Matemáticos Activos (W_i) -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2 mb-2.5">
+                    <div class="flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-wider mb-1">
+                        <span>Ponderación Matemática Activa (∑ Wᵢ = 100%)</span>
+                        <span id="mode-label-short" class="text-sky-400 font-semibold">Equilibrado</span>
+                    </div>
+                    <div id="weights-bars-container" class="grid grid-cols-5 gap-1.5 text-center">
+                        <!-- Se llena dinámicamente con los 5 pesos de la fórmula -->
+                    </div>
+                </div>
+
+                <!-- Gráfico de Radar -->
+                <div class="bg-slate-900/60 rounded-xl p-2 border border-slate-800 mb-2.5">
+                    <canvas id="radarChart" height="165"></canvas>
+                </div>
+            </div>
+
+            <!-- Alerta de Brecha de Realidad (Reality Gap) + Condición Climática del Mes -->
+            <div class="bg-amber-950/30 border border-amber-500/40 rounded-xl p-3">
+                <div class="flex items-center justify-between mb-1">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-amber-400 text-sm">⚠️</span>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-amber-300">Reality Gap & Clima Mensual</h4>
+                    </div>
+                    <span id="seasonal-penalty-tag" class="text-[10px] font-mono text-amber-200 bg-amber-500/20 px-1.5 py-0.5 rounded">
+                        Fidelidad: 100%
+                    </span>
+                </div>
+                <p id="reality-gap-text" class="text-xs text-amber-100/90 leading-relaxed">
+                    Excelente análogo topográfico y térmico criogénico, pero la presión atmosférica terrestre (1 atm) exige compensar la convección térmica en pruebas de trajes y rovers.
+                </p>
+            </div>
+        </section>
+
+        <!-- Columna Derecha: Ranking Global Top 3 + Mapa Mundial Sincronizado Multi-Pin + Exportación Dinámica (4 cols) -->
+        <section class="lg:col-span-4 glass-panel rounded-2xl p-5 flex flex-col justify-between">
+            <div>
+                <!-- Encabezado Ranking Top 3 -->
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-sky-400">
+                        🏆 Ranking Global del Mes (Top 3)
+                    </span>
+                    <span id="ranking-month-indicator" class="text-[10px] font-mono text-emerald-400">
+                        Período: Julio
+                    </span>
+                </div>
+
+                <!-- Contenedor del Podio Top 3 Interactivo -->
+                <div id="top-ranking-list" class="grid grid-cols-3 gap-2 mb-2.5">
+                    <!-- Se llena dinámicamente con las 3 tarjetas del podio -->
+                </div>
+
+                <!-- Detalle del Sitio Seleccionado -->
+                <div class="flex items-center justify-between mb-1 pt-2 border-t border-slate-800/80">
+                    <span id="active-analog-badge" class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        #1 GANADOR DEL MES
+                    </span>
+                    <span id="earth-coords" class="text-xs font-mono text-slate-400">77.85° S, 166.67° E</span>
+                </div>
+
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                    <div>
+                        <h2 id="earth-title" class="text-lg font-bold text-white leading-tight">Valles Secos de McMurdo</h2>
+                        <p id="earth-location" class="text-xs text-sky-400 font-medium">Tierra de Victoria, Antártida</p>
+                    </div>
+                    <button type="button" onclick="fitAllCandidatesOnMap()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 rounded-lg text-[10px] font-semibold transition shrink-0" title="Ver todos los sitios candidatos simultáneamente en el mapa mundial">
+                        🌍 Vista Global
+                    </button>
+                </div>
+
+                <!-- Leyenda Visual de Pines del Mapa según Ranking -->
+                <div class="flex items-center justify-between bg-slate-900/80 border border-slate-800 px-2.5 py-1 rounded-lg mb-1.5 text-[10px]">
+                    <span class="flex items-center gap-1 text-emerald-300 font-semibold">
+                        <span class="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 inline-block"></span> #1 Ganador
+                    </span>
+                    <span class="flex items-center gap-1 text-amber-300 font-semibold">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> #2 Puesto
+                    </span>
+                    <span class="flex items-center gap-1 text-slate-300 font-semibold">
+                        <span class="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block"></span> #3 y #4
+                    </span>
+                </div>
+            </div>
+
+            <!-- Mapa Satelital Interactivo con Todos los Candidatos Simultáneos -->
+            <div class="flex-1 my-1 rounded-xl overflow-hidden border border-slate-700 relative">
+                <div id="earth-map"></div>
+            </div>
+
+            <!-- Datasets Terrestres Cruzados & Exportación Sincronizada con el Mes -->
+            <div class="mt-2.5 pt-2.5 border-t border-slate-800 flex items-center justify-between gap-2 text-xs">
+                <div class="truncate">
+                    <span class="text-slate-400 block text-[10px] uppercase">Capas NASA / Abiertas</span>
+                    <span id="earth-datasets" class="font-mono text-emerald-300 text-[11px]">ASTER GDEM • MODIS LST • SMAP</span>
+                </div>
+                <button id="export-btn" onclick="exportReport()" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg transition text-xs shadow-lg shadow-sky-600/20 shrink-0">
+                    📥 Exportar Informe (Julio)
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Nombres de los 12 meses para el Análisis Temporal
+        const MONTHS_FULL = [
+            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        ];
+        const MONTHS_SHORT = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
+        // Nombres cortos de los 5 ejes físicos del modelo matemático
+        const AXIS_NAMES = ['Topo/Pend', 'Mineralogía', 'Térmico', 'Iluminación', 'Subsuelo'];
+
+        // Vectores de pesos matemáticos (W) según la Prioridad de Prueba seleccionada (Suman 1.00 = 100%)
+        // Orden de ejes: [0: Topografía/Pendiente, 1: Mineralogía, 2: Estrés Térmico, 3: Iluminación, 4: Acceso Subsuelo]
+        const MISSION_WEIGHTS = {
+            balanced: {
+                name: "Equilibrado (Base)",
+                weights: [0.20, 0.20, 0.20, 0.20, 0.20]
+            },
+            mobility: {
+                name: "Movilidad Rovers",
+                weights: [0.40, 0.15, 0.15, 0.25, 0.05]
+            },
+            isru: {
+                name: "Geología / ISRU",
+                weights: [0.10, 0.50, 0.15, 0.10, 0.15]
+            },
+            subsurface: {
+                name: "Hábitats / Subsuelo",
+                weights: [0.10, 0.15, 0.25, 0.05, 0.45]
+            }
+        };
+
+        // Función que aplica la curva estacional del mes (0..11) al vector base de 5 métricas del sitio terrestre
+        function getMonthlyEarthMetrics(baseMetrics, seasonalDelta) {
+            const sensitivity = [0.85, 0.30, 1.00, 1.15, 0.40];
+            return baseMetrics.map((val, idx) => {
+                const adjusted = Math.round(val + (seasonalDelta * sensitivity[idx]));
+                return Math.max(25, Math.min(100, adjusted));
+            });
+        }
+
+        // Motor Matemático Real: Calcula el índice de similitud combinando Proximidad Ponderada (L1) y Similitud Coseno Ponderada
+        function calculateMathematicalSimilarity(targetVec, earthVec, weightVec) {
+            let weightedProximitySum = 0;
+            let dotProduct = 0;
+            let normTargetSq = 0;
+            let normEarthSq = 0;
+
+            for (let i = 0; i < 5; i++) {
+                const w = weightVec[i];
+                const t = targetVec[i];
+                const e = earthVec[i];
+
+                const diff = Math.abs(t - e);
+                const axisProximity = Math.max(0, 100 - 1.35 * diff);
+                weightedProximitySum += w * axisProximity;
+
+                dotProduct += w * t * e;
+                normTargetSq += w * (t * t);
+                normEarthSq += w * (e * e);
+            }
+
+            const cosineSimilarity = (normTargetSq > 0 && normEarthSq > 0)
+                ? (dotProduct / (Math.sqrt(normTargetSq) * Math.sqrt(normEarthSq))) * 100
+                : 0;
+
+            const finalScore = (0.85 * weightedProximitySum) + (0.15 * cosineSimilarity);
+
+            return {
+                total: Number(finalScore.toFixed(1)),
+                proximity: Number(weightedProximitySum.toFixed(1)),
+                cosine: Number(cosineSimilarity.toFixed(1))
+            };
+        }
+
+        // Base de datos global sin rangos de meses estáticos: las curvas de 12 meses determinan dinámicamente el mes óptimo
+        const analogDatabase = {
+            shackleton: {
+                planet: "LUNA • ARTEMIS ZONE",
+                title: "Cráter Shackleton",
+                coords: "89.90° S, 0.00° E",
+                desc: "Bordes con iluminación casi continua y fondo en sombra permanente (PSR) con hielo de agua y pendientes críticas para descenso.",
+                dataset: "LRO LOLA + M3 + Diviner",
+                temp: "-183 °C",
+                slope: "18.5°",
+                mineral: "Anortosita",
+                gravity: "1.62 m/s²",
+                color: 0x38bdf8,
+                targetMetrics: [94, 92, 95, 92, 88],
+                candidates: [
+                    {
+                        id: "mcmurdo",
+                        name: "Valles Secos de McMurdo",
+                        shortName: "McMurdo",
+                        country: "Antártida",
+                        location: "Tierra de Victoria, Antártida",
+                        lat: -77.47, lon: 162.52,
+                        earthMetrics: [86, 80, 91, 86, 81],
+                        seasonalCurve: [0, -1, -5, -11, -16, -20, -21, -18, -12, -6, -2, -1],
+                        offSeasonReason: "Noche polar antártica (oscuridad total y vientos catabáticos extremos en invierno austral).",
+                        datasets: "ASTER GDEM • MODIS LST • SMAP",
+                        gap: "Simula de forma excepcional la aridez extrema, permafrost y ángulos solares bajos, pero requiere compensar gravedad (1/6 g) y vacío."
+                    },
+                    {
+                        id: "licancabur",
+                        name: "Volcán Licancabur (Ladera Alta)",
+                        shortName: "V. Licancabur",
+                        country: "Chile",
+                        location: "Altiplano de Atacama, Chile",
+                        lat: -22.83, lon: -67.88,
+                        earthMetrics: [94, 80, 79, 92, 65],
+                        seasonalCurve: [-14, -15, -8, -4, -2, -1, 0, -1, -1, -2, -4, -9],
+                        offSeasonReason: "Invierno Altiplánico estival aporta nubosidad, nieve y humedad que alteran la tracción y aridez.",
+                        datasets: "SRTM 30m • Sentinel-2 • EMIT",
+                        gap: "Pendientes de regolito suelto y radiación UV extrema ideales para rovers, aunque la temperatura es más templada que el polo lunar."
+                    },
+                    {
+                        id: "stillwater",
+                        name: "Complejo Ígneo de Stillwater",
+                        shortName: "Stillwater",
+                        country: "EE. UU.",
+                        location: "Montana, Estados Unidos",
+                        lat: 45.38, lon: -109.88,
+                        earthMetrics: [75, 92, 80, 76, 80],
+                        seasonalCurve: [-14, -13, -9, -5, -3, -1, -1, 0, -1, -4, -10, -13],
+                        offSeasonReason: "Cobertura de nieve y congelamiento superficial invernal dificulta excavación ISRU.",
+                        datasets: "ASTER Mineral • USGS Geo",
+                        gap: "Contiene anortositas ricas en plagioclasa casi idénticas a las tierras altas lunares para probar extracción de oxígeno, pero con vegetación y clima templado."
+                    },
+                    {
+                        id: "haughton",
+                        name: "Cráter Haughton",
+                        shortName: "C. Haughton",
+                        country: "Canadá",
+                        location: "Isla Devon, Nunavut, Canadá",
+                        lat: 75.38, lon: -89.68,
+                        earthMetrics: [81, 80, 93, 78, 88],
+                        seasonalCurve: [-18, -18, -14, -8, -4, -1, 0, -1, -5, -10, -15, -18],
+                        offSeasonReason: "Noche polar ártica y congelamiento severo reducen la viabilidad de pruebas solares en superficie.",
+                        datasets: "ArcticDEM • RADARSAT • MODIS",
+                        gap: "Estructura de impacto con brechas congeladas ideal para perforación subsuperficial y aislamiento de tripulación."
+                    }
+                ]
+            },
+            marius: {
+                planet: "LUNA • OCEANUS PROCELLARUM",
+                title: "Colinas Marius (Skylight Pit)",
+                coords: "14.09° N, 56.77° W",
+                desc: "Domos volcánicos con tragaluces naturales que dan acceso a tubos de lava subterráneos protegidos contra radiación cósmica.",
+                dataset: "LROC NAC + GRAIL + Kaguya",
+                temp: "-20 °C (interior)",
+                slope: "12.0°",
+                mineral: "Basalto rico en Ti",
+                gravity: "1.62 m/s²",
+                color: 0x818cf8,
+                targetMetrics: [88, 94, 80, 76, 98],
+                candidates: [
+                    {
+                        id: "lanzarote",
+                        name: "Cueva de los Verdes / Corona",
+                        shortName: "C. Los Verdes",
+                        country: "España",
+                        location: "Lanzarote, Islas Canarias",
+                        lat: 29.16, lon: -13.43,
+                        earthMetrics: [83, 88, 78, 74, 90],
+                        seasonalCurve: [-5, -4, -2, -1, -1, -1, -1, -1, 0, -1, -3, -5],
+                        offSeasonReason: "Lluvias atlánticas ocasionales y mayor humedad ambiental durante el invierno boreal.",
+                        datasets: "LiDAR Terrestre • ASTER • Sentinel-1",
+                        gap: "Tubos de lava basálticos de dimensiones comparables para hábitats inflables, pero en la Luna las cavernas pueden ser 10 veces más anchas por la baja gravedad."
+                    },
+                    {
+                        id: "krafla",
+                        name: "Campo Volcánico Krafla",
+                        shortName: "Krafla",
+                        country: "Islandia",
+                        location: "Norte de Islandia",
+                        lat: 65.71, lon: -16.75,
+                        earthMetrics: [88, 85, 77, 76, 76],
+                        seasonalCurve: [-16, -15, -12, -7, -3, -1, 0, -1, -4, -8, -13, -16],
+                        offSeasonReason: "Tormentas subárticas, nieve profunda y baja iluminación solar fuera del verano boreal.",
+                        datasets: "ArcticDEM • EMIT • MODIS",
+                        gap: "Flujos de lava recientes y ceniza basáltica ideales para probar tracción de rovers y descenso por cable en claraboyas."
+                    },
+                    {
+                        id: "taltal",
+                        name: "Meseta Basáltica Atacama Sur",
+                        shortName: "Atacama Sur",
+                        country: "Chile",
+                        location: "Antofagasta / Taltal, Chile",
+                        lat: -25.12, lon: -69.85,
+                        earthMetrics: [79, 94, 78, 72, 80],
+                        seasonalCurve: [-1, -1, -1, -1, -2, -4, -4, -3, -1, 0, -1, -1],
+                        offSeasonReason: "Ingreso ocasional de nubosidad costera (camanchaca invernal) reduce ligeramente la insolación.",
+                        datasets: "EMIT Hyperspectral • ASTER",
+                        gap: "Basaltos hiperáridos sin alteración acuosa reciente, óptimos para sinterización láser de ladrillos lunares."
+                    },
+                    {
+                        id: "maunaloa",
+                        name: "Tubos de Lava de Mauna Loa",
+                        shortName: "Mauna Loa",
+                        country: "EE. UU.",
+                        location: "Hawái, Estados Unidos",
+                        lat: 19.47, lon: -155.60,
+                        earthMetrics: [75, 86, 80, 64, 98],
+                        seasonalCurve: [-8, -9, -5, -3, -1, -1, -1, 0, -1, -2, -4, -7],
+                        offSeasonReason: "Frentes invernales de alta montaña en Hawái generan nieve y viento en cotas altas.",
+                        datasets: "NASA GEDI • USGS LiDAR",
+                        gap: "Referencia mundial para navegación SLAM sin GPS dentro de túneles volcánicos oscuros y complejos."
+                    }
+                ]
+            },
+            jezero: {
+                planet: "MARTE • ISIDIS PLANITIA",
+                title: "Cráter Jezero (Delta Occidental)",
+                coords: "18.38° N, 77.58° E",
+                desc: "Antiguo paleolago marciano con abanico deltaico rico en esmectitas, carbonatos y sílice hidratada.",
+                dataset: "MRO HiRISE + CRISM + MOLA",
+                temp: "-63 °C",
+                slope: "9.4°",
+                mineral: "Esmectitas / Carbonatos",
+                gravity: "3.72 m/s²",
+                color: 0xf43f5e,
+                targetMetrics: [90, 96, 84, 86, 88],
+                candidates: [
+                    {
+                        id: "pajonales",
+                        name: "Salar de Pajonales / Atacama",
+                        shortName: "S. Pajonales",
+                        country: "Chile",
+                        location: "Región de Antofagasta, Chile",
+                        lat: -25.14, lon: -68.82,
+                        earthMetrics: [84, 91, 82, 82, 82],
+                        seasonalCurve: [-12, -13, -6, -3, -2, -2, -2, -1, 0, -1, -2, -6],
+                        offSeasonReason: "Precipitaciones y humedad del Invierno Altiplánico alteran temporalmente las costras salinas.",
+                        datasets: "EMIT • ASTER • Landsat 9",
+                        gap: "Presencia de sulfatos, carbonatos y estromatolitos fósiles bajo radiación UV extrema; atmósfera terrestre es 100 veces más densa."
+                    },
+                    {
+                        id: "wadirum",
+                        name: "Wadi Rum (Valle de la Luna)",
+                        shortName: "Wadi Rum",
+                        country: "Jordania",
+                        location: "Gobernación de Aqaba, Jordania",
+                        lat: 29.57, lon: 35.42,
+                        earthMetrics: [90, 84, 80, 86, 68],
+                        seasonalCurve: [-7, -6, -2, 0, -1, -3, -5, -5, -1, -1, -3, -6],
+                        offSeasonReason: "Lluvias invernales o tormentas térmicas de polvo en pleno verano boreal.",
+                        datasets: "SRTM • Sentinel-2",
+                        gap: "Dunas de arena fina combinadas con afloramientos de arenisca para probar atrapamiento de ruedas."
+                    },
+                    {
+                        id: "pilbara",
+                        name: "Pilbara Craton (North Pole Dome)",
+                        shortName: "Pilbara",
+                        country: "Australia",
+                        location: "Australia Occidental",
+                        lat: -21.18, lon: 119.45,
+                        earthMetrics: [78, 96, 80, 78, 80],
+                        seasonalCurve: [-14, -15, -10, -4, -2, -1, 0, -1, -1, -2, -5, -11],
+                        offSeasonReason: "Temporada ciclónica húmeda y calor extremo estival inunda accesos y altera sensores.",
+                        datasets: "ASTER Geoscience • Hyperspectral",
+                        gap: "Rocas hidrotermales de 3.500 millones de años idénticas a las del Noeico marciano para calibrar espectrómetros Raman."
+                    },
+                    {
+                        id: "riotinto",
+                        name: "Río Tinto (Subsuelo Pirítico)",
+                        shortName: "Río Tinto",
+                        country: "España",
+                        location: "Huelva, España",
+                        lat: 37.70, lon: -6.55,
+                        earthMetrics: [74, 88, 84, 72, 88],
+                        seasonalCurve: [-9, -8, -6, -4, -2, 0, -1, -1, -1, -4, -8, -10],
+                        offSeasonReason: "Lluvias otoñales e invernales diluyen las costras minerales ácidas superficiales.",
+                        datasets: "ESA Sentinel • ESA Borehole Data",
+                        gap: "Química ácida rica en hierro y microorganismos quimiolitótrofos subsuperficiales análogos a posibles biosferas marcianas."
+                    }
+                ]
+            },
+            arcadia: {
+                planet: "MARTE • LATITUDES MEDIAS",
+                title: "Arcadia Planitia",
+                coords: "46.70° N, 192.00° E",
+                desc: "Llanura volcánica suave con glaciares enterrados a poca profundidad (<1-2 metros), candidata top para bases humanas.",
+                dataset: "MRO SHARAD + CTX + THEMIS",
+                temp: "-75 °C",
+                slope: "2.1°",
+                mineral: "Basalto + Hielo H2O",
+                gravity: "3.72 m/s²",
+                color: 0x10b981,
+                targetMetrics: [96, 90, 92, 82, 95],
+                candidates: [
+                    {
+                        id: "axelheiberg",
+                        name: "Meseta de Axel Heiberg",
+                        shortName: "Axel Heiberg",
+                        country: "Canadá",
+                        location: "Ártico Canadiense, Nunavut",
+                        lat: 79.41, lon: -90.75,
+                        earthMetrics: [88, 84, 89, 78, 88],
+                        seasonalCurve: [-18, -17, -13, -7, -3, -1, 0, -1, -4, -10, -15, -18],
+                        offSeasonReason: "Oscuridad polar e inaccesibilidad logística extrema fuera del verano ártico.",
+                        datasets: "SMAP • ArcticDEM • MODIS",
+                        gap: "Permafrost poligonal y hielo masivo enterrado bajo regolito seco ideal para probar taladros de extracción de agua."
+                    },
+                    {
+                        id: "racetrack",
+                        name: "Playa Racetrack (Valle de la Muerte)",
+                        shortName: "Racetrack",
+                        country: "EE. UU.",
+                        location: "California, Estados Unidos",
+                        lat: 36.67, lon: -117.56,
+                        earthMetrics: [96, 80, 80, 82, 70],
+                        seasonalCurve: [-12, -13, -6, -2, 0, -1, -3, -3, -1, -1, -4, -10],
+                        offSeasonReason: "Lluvias invernales inundan la planicie arcillosa formando barro que impide el rodaje de rovers.",
+                        datasets: "USGS LiDAR • Landsat 8",
+                        gap: "Planicie ultra-plana con polígonos de desecación para probar aterrizajes de precisión y convoyes autónomos."
+                    },
+                    {
+                        id: "eltatio",
+                        name: "Campo Geotérmico El Tatio / Puna",
+                        shortName: "El Tatio",
+                        country: "Chile",
+                        location: "Antofagasta, Chile",
+                        lat: -22.33, lon: -68.01,
+                        earthMetrics: [82, 90, 88, 78, 84],
+                        seasonalCurve: [-13, -14, -6, -3, -2, -1, -1, 0, -1, -1, -2, -7],
+                        offSeasonReason: "Invierno Altiplánico estival aporta lluvias y nubosidad convectiva sobre el campo geotérmico.",
+                        datasets: "ASTER • EMIT • MODIS LST",
+                        gap: "Combinación única de hielo nocturno, baja presión atmosférica y sílice amorfa para sistemas de procesamiento de agua."
+                    },
+                    {
+                        id: "foxtunnel",
+                        name: "Túneles de Permafrost de Fox",
+                        shortName: "Fox Permafrost",
+                        country: "EE. UU.",
+                        location: "Fairbanks, Alaska",
+                        lat: 64.95, lon: -147.62,
+                        earthMetrics: [78, 82, 92, 70, 95],
+                        seasonalCurve: [-9, -8, -5, -3, -1, 0, -1, -1, -2, -4, -7, -9],
+                        offSeasonReason: "Tormentas subárticas en superficie durante el invierno boreal.",
+                        datasets: "NASA ABoVE • SMAP",
+                        gap: "Permite ensayar excavación y estabilización térmica de túneles en hielo-suelo sin derretir la estructura."
+                    }
+                ]
+            }
+        };
+
+        // Variables de estado global sincronizadas
+        let allRankedCandidates = [];
+        let currentTop3 = [];
+        let selectedRankIndex = 0;
+        let selectedMonthIndex = 6; // Julio por defecto
+        let calculatedOptimalInfo = { monthIndex: 6, score: 93.8, candidateName: "" };
+        let mapMarkers = [];
+
+        // Cálculo 100% dinámico del Mes Óptimo para la misión actual (evalúa los 12 meses y todos los candidatos)
+        function computeDynamicOptimalMonth(targetKey, modeKey) {
+            const target = analogDatabase[targetKey];
+            const weightVec = MISSION_WEIGHTS[modeKey].weights;
+
+            let bestMonthIndex = 0;
+            let bestScore = -1;
+            let bestCandidateName = "";
+
+            for (let m = 0; m < 12; m++) {
+                target.candidates.forEach(c => {
+                    const monthlyVec = getMonthlyEarthMetrics(c.earthMetrics, c.seasonalCurve[m]);
+                    const sim = calculateMathematicalSimilarity(target.targetMetrics, monthlyVec, weightVec);
+                    if (sim.total > bestScore) {
+                        bestScore = sim.total;
+                        bestMonthIndex = m;
+                        bestCandidateName = c.name;
+                    }
+                });
+            }
+
+            return {
+                monthIndex: bestMonthIndex,
+                monthName: MONTHS_FULL[bestMonthIndex],
+                score: bestScore,
+                candidateName: bestCandidateName
+            };
+        }
+
+        // Cálculo dinámico del mejor mes individual para un candidato específico
+        function computeCandidateBestMonth(candidate, targetMetrics, weightVec) {
+            let bestM = 0;
+            let bestS = -1;
+            for (let m = 0; m < 12; m++) {
+                const vec = getMonthlyEarthMetrics(candidate.earthMetrics, candidate.seasonalCurve[m]);
+                const sim = calculateMathematicalSimilarity(targetMetrics, vec, weightVec);
+                if (sim.total > bestS) {
+                    bestS = sim.total;
+                    bestM = m;
+                }
+            }
+            return { monthIndex: bestM, monthName: MONTHS_FULL[bestM], score: bestS };
+        }
+
+        // Acción del botón "Ver mes óptimo: [Mes] ([X]% de similitud)"
+        function goToOptimalMonth() {
+            const targetKey = document.getElementById('target-select').value;
+            const modeKey = document.getElementById('mission-mode').value;
+            const optimal = computeDynamicOptimalMonth(targetKey, modeKey);
+
+            selectedMonthIndex = optimal.monthIndex;
+            document.getElementById('month-slider').value = selectedMonthIndex;
+            updateDashboard(true);
+        }
+
+        // --- CONFIGURACIÓN THREE.JS (Visor 3D Topográfico) ---
+        const container3D = document.getElementById('canvas-3d-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x020617, 0.15);
+
+        const width3D = container3D.clientWidth || 300;
+        const height3D = container3D.clientHeight || 210;
+
+        const camera = new THREE.PerspectiveCamera(45, width3D / height3D, 0.1, 1000);
+        camera.position.set(0, 4, 6);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(width3D, height3D);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container3D.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0x38bdf8, 1.5);
+        directionalLight.position.set(5, 10, 7);
+        scene.add(directionalLight);
+
+        const pointLight = new THREE.PointLight(0x818cf8, 2, 50);
+        pointLight.position.set(-5, 5, -5);
+        scene.add(pointLight);
+
+        let terrainGeometry = new THREE.PlaneGeometry(6, 6, 32, 32);
+        let terrainMaterial = new THREE.MeshStandardMaterial({
+            color: 0x38bdf8,
+            wireframe: true,
+            roughness: 0.4,
+            metalness: 0.2
+        });
+        let terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
+        terrainMesh.rotation.x = -Math.PI / 2.5;
+        scene.add(terrainMesh);
+
+        function generateTerrainNoise(targetKey) {
+            const positions = terrainGeometry.attributes.position;
+            const factor = targetKey === 'shackleton' ? 0.8 : targetKey === 'marius' ? 0.5 : targetKey === 'jezero' ? 0.6 : 0.3;
+            
+            for (let i = 0; i < positions.count; i++) {
+                const x = positions.getX(i);
+                const y = positions.getY(i);
+                const z = Math.sin(x * 1.2 + factor * 2) * Math.cos(y * 1.2) * 0.7 
+                        - Math.sin(Math.sqrt(x*x + y*y) * 0.8) * (factor * 0.6);
+                positions.setZ(i, z);
+            }
+            terrainGeometry.computeVertexNormals();
+            terrainGeometry.attributes.position.needsUpdate = true;
+        }
+
+        // --- MAPA LEAFLET ---
+        const map = L.map('earth-map').setView([10, -20], 2);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; NASA/USGS Data Layers'
+        }).addTo(map);
+
+        // Encuadrar todos los sitios candidatos simultáneamente en el mapa mundial
+        function fitAllCandidatesOnMap() {
+            if (allRankedCandidates.length === 0) return;
+            const bounds = L.latLngBounds(allRankedCandidates.map(c => [c.lat, c.lon]));
+            map.fitBounds(bounds, { padding: [35, 35], maxZoom: 4 });
+            if (mapMarkers[selectedRankIndex]) {
+                mapMarkers[selectedRankIndex].openPopup();
+            }
+        }
+
+        // --- GRÁFICO RADAR ---
+        const ctx = document.getElementById('radarChart').getContext('2d');
+        const radarChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['Topografía/Pendiente', 'Mineralogía', 'Estrés Térmico', 'Iluminación', 'Acceso Subsuelo'],
+                datasets: [
+                    {
+                        label: 'Objetivo Espacial',
+                        data: [94, 92, 95, 92, 88],
+                        borderColor: '#818cf8',
+                        backgroundColor: 'rgba(129, 140, 248, 0.2)',
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Análogo Terrestre',
+                        data: [86, 80, 91, 86, 81],
+                        borderColor: '#34d399',
+                        backgroundColor: 'rgba(52, 211, 153, 0.2)',
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                scales: {
+                    r: {
+                        min: 35,
+                        max: 100,
+                        ticks: { display: false },
+                        grid: { color: 'rgba(148, 163, 184, 0.15)' },
+                        angleLines: { color: 'rgba(148, 163, 184, 0.15)' },
+                        pointLabels: { color: '#cbd5e1', font: { size: 10 } }
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#e2e8f0', font: { size: 11 } } }
+                }
+            }
+        });
+
+        // Renderizar etiquetas clickeables de los 12 meses debajo del slider
+        function renderMonthTicks() {
+            const container = document.getElementById('month-ticks-container');
+            container.innerHTML = '';
+            MONTHS_SHORT.forEach((mShort, idx) => {
+                const span = document.createElement('span');
+                span.className = `month-tick ${idx === selectedMonthIndex ? 'active-month' : ''}`;
+                span.textContent = mShort;
+                span.onclick = () => {
+                    document.getElementById('month-slider').value = idx;
+                    selectedMonthIndex = idx;
+                    updateDashboard(false);
+                };
+                container.appendChild(span);
+            });
+        }
+
+        // Renderizar barras de pesos activos (W_i) en la columna central
+        function renderActiveWeights(modeKey) {
+            const config = MISSION_WEIGHTS[modeKey];
+            document.getElementById('mode-label-short').textContent = config.name;
+            const container = document.getElementById('weights-bars-container');
+            container.innerHTML = '';
+
+            config.weights.forEach((w, idx) => {
+                const pct = Math.round(w * 100);
+                const isHigh = pct >= 25;
+                const pill = document.createElement('div');
+                pill.className = `weight-pill rounded-lg p-1 border ${isHigh ? 'bg-sky-500/15 border-sky-500/40 text-sky-200' : 'bg-slate-950/60 border-slate-800 text-slate-400'}`;
+                pill.innerHTML = `
+                    <span class="block text-[9px] truncate">${AXIS_NAMES[idx]}</span>
+                    <span class="text-xs font-extrabold font-mono ${isHigh ? 'text-sky-300' : 'text-slate-300'}">${pct}%</span>
+                `;
+                container.appendChild(pill);
+            });
+        }
+
+        // Renderizar las 3 tarjetas interactivas del Ranking Global (Podio Top 3)
+        function renderTop3Cards() {
+            const container = document.getElementById('top-ranking-list');
+            container.innerHTML = '';
+
+            const medals = ['🟢 #1', '🟠 #2', '⚪ #3'];
+            const badgeColors = [
+                'text-emerald-300 bg-emerald-500/20 border-emerald-500/40',
+                'text-amber-300 bg-amber-500/20 border-amber-500/40',
+                'text-slate-200 bg-slate-500/20 border-slate-400/40'
+            ];
+
+            currentTop3.forEach((candidate, idx) => {
+                const isActive = idx === selectedRankIndex;
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.onclick = () => selectCandidate(idx, true);
+                card.className = `rank-card text-left p-2.5 rounded-xl border border-slate-700/80 bg-slate-900/70 flex flex-col justify-between ${isActive ? 'active' : 'opacity-80 hover:opacity-100'}`;
+
+                const seasonIcon = candidate.monthDelta === 0 ? '☀️' : (candidate.monthDelta >= -5 ? '⛅' : '❄️');
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between w-full mb-1">
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border ${badgeColors[idx]}">${medals[idx]}</span>
+                        <span class="text-xs font-extrabold text-white font-mono">${candidate.currentScore.toFixed(1)}%</span>
+                    </div>
+                    <p class="text-xs font-bold text-slate-100 truncate w-full" title="${candidate.name}">${candidate.shortName}</p>
+                    <div class="flex items-center justify-between w-full mt-0.5">
+                        <span class="text-[10px] text-slate-400 truncate">${candidate.country}</span>
+                        <span class="text-[10px]" title="Condición climática en el mes seleccionado">${seasonIcon}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Mostrar en el mapa mundial TODOS los sitios candidatos simultáneamente con diferenciación visual según su ranking
+        function updateMapMarkers() {
+            mapMarkers.forEach(m => map.removeLayer(m));
+            mapMarkers = [];
+
+            const monthName = MONTHS_FULL[selectedMonthIndex];
+
+            allRankedCandidates.forEach((candidate, idx) => {
+                // Clase visual según ranking: #1 Verde/Azul brillante, #2 Ámbar, #3 y #4 Gris
+                let pinClass = 'pin-rank-other';
+                if (idx === 0) pinClass = 'pin-rank-1';
+                else if (idx === 1) pinClass = 'pin-rank-2';
+                else if (idx === 2) pinClass = 'pin-rank-3';
+
+                const customIcon = L.divIcon({
+                    className: '',
+                    html: `<div class="custom-map-pin ${pinClass}">#${idx + 1} ${candidate.shortName} (${candidate.currentScore.toFixed(1)}%)</div>`,
+                    iconSize: [120, 26],
+                    iconAnchor: [60, 13]
+                });
+
+                const m = L.marker([candidate.lat, candidate.lon], { icon: customIcon }).addTo(map);
+                m.bindPopup(`
+                    <div style="font-family:sans-serif;min-width:180px;">
+                        <div style="font-size:11px;font-weight:bold;color:#0284c7;">PUESTO #${idx + 1} (${monthName.toUpperCase()})</div>
+                        <div style="font-size:13px;font-weight:bold;margin:2px 0;">${candidate.name}</div>
+                        <div style="font-size:11px;color:#475569;">${candidate.location}</div>
+                        <div style="margin-top:4px;font-size:12px;">Similitud en ${monthName}: <b>${candidate.currentScore.toFixed(1)}%</b></div>
+                        <div style="font-size:11px;color:#059669;">Mes pico del sitio: <b>${candidate.peakInfo.monthName} (${candidate.peakInfo.score.toFixed(1)}%)</b></div>
+                    </div>
+                `);
+
+                m.on('click', () => {
+                    if (idx < 3) {
+                        selectCandidate(idx, false);
+                    }
+                });
+
+                mapMarkers.push(m);
+            });
+        }
+
+        // Seleccionar un candidato del Top 3 (0 = #1, 1 = #2, 2 = #3)
+        function selectCandidate(rankIndex, focusSingleSite = false) {
+            selectedRankIndex = rankIndex;
+            const targetKey = document.getElementById('target-select').value;
+            const target = analogDatabase[targetKey];
+            const analog = currentTop3[rankIndex];
+            const monthName = MONTHS_FULL[selectedMonthIndex];
+
+            renderTop3Cards();
+
+            // Etiquetas de posición y mes
+            const rankLabels = ['#1 GANADOR DEL MES', '#2 PUESTO DEL MES', '#3 PUESTO DEL MES'];
+            document.getElementById('active-analog-badge').textContent = `${rankLabels[rankIndex]} (${monthName.toUpperCase()})`;
+            document.getElementById('selected-rank-tag').textContent = `Candidato #${rankIndex + 1} (${analog.country})`;
+
+            // Panel Central (Puntaje + Mes + Desglose Matemático)
+            document.getElementById('match-score').textContent = `${analog.currentScore.toFixed(1)}%`;
+            document.getElementById('score-month-label').textContent = `en ${monthName}`;
+            document.getElementById('formula-breakdown').textContent = `Prox: ${analog.mathDetails.proximity}% | Cos: ${analog.mathDetails.cosine}%`;
+
+            // Mostrar el mes pico individual calculado dinámicamente para este candidato
+            document.getElementById('candidate-peak-month-label').textContent =
+                `Mejor mes de ${analog.shortName}: ${analog.peakInfo.monthName} (${analog.peakInfo.score.toFixed(1)}%)`;
+
+            // Actualizar texto y estado del botón "Ver mes óptimo"
+            const optBtnText = document.getElementById('optimal-month-btn-text');
+            if (selectedMonthIndex === calculatedOptimalInfo.monthIndex) {
+                optBtnText.textContent = `Mes óptimo activo: ${calculatedOptimalInfo.monthName} (${calculatedOptimalInfo.score.toFixed(1)}% de similitud)`;
+            } else {
+                optBtnText.textContent = `Ver mes óptimo: ${calculatedOptimalInfo.monthName} (${calculatedOptimalInfo.score.toFixed(1)}% de similitud)`;
+            }
+
+            // Estado Estacional del candidato en el mes seleccionado
+            const statusBadge = document.getElementById('seasonal-status-badge');
+            const penaltyTag = document.getElementById('seasonal-penalty-tag');
+
+            if (analog.monthDelta === 0) {
+                statusBadge.className = 'font-semibold text-emerald-400 truncate';
+                statusBadge.textContent = `🟢 ${monthName}: Pico Estacional Óptimo`;
+                penaltyTag.className = 'text-[10px] font-mono text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded';
+                penaltyTag.textContent = 'Fidelidad Estacional: 100%';
+                document.getElementById('reality-gap-text').textContent = analog.gap;
+            } else if (analog.monthDelta >= -5) {
+                statusBadge.className = 'font-semibold text-amber-300 truncate';
+                statusBadge.textContent = `🟡 ${monthName}: Condición Intermedia`;
+                penaltyTag.className = 'text-[10px] font-mono text-amber-200 bg-amber-500/20 px-1.5 py-0.5 rounded';
+                penaltyTag.textContent = `Ajuste Estacional: ${analog.monthDelta} pts`;
+                document.getElementById('reality-gap-text').textContent = `${analog.gap} Nota estacional (${monthName}): ${analog.offSeasonReason}`;
+            } else {
+                statusBadge.className = 'font-semibold text-rose-400 truncate';
+                statusBadge.textContent = `🔴 ${monthName}: Condición Climática Adversa`;
+                penaltyTag.className = 'text-[10px] font-mono text-rose-200 bg-rose-500/30 px-1.5 py-0.5 rounded';
+                penaltyTag.textContent = `Penalización: ${analog.monthDelta} pts`;
+                document.getElementById('reality-gap-text').textContent = `⚠️ ALERTA ESTACIONAL (${monthName.toUpperCase()}): ${analog.offSeasonReason} ${analog.gap}`;
+            }
+
+            // Actualizar etiquetas y vectores del Radar con las métricas del mes actual
+            const modeKey = document.getElementById('mission-mode').value;
+            const w = MISSION_WEIGHTS[modeKey].weights;
+            radarChart.data.labels = [
+                `Topografía (${Math.round(w[0]*100)}%)`,
+                `Mineralogía (${Math.round(w[1]*100)}%)`,
+                `Estrés Térmico (${Math.round(w[2]*100)}%)`,
+                `Iluminación (${Math.round(w[3]*100)}%)`,
+                `Subsuelo (${Math.round(w[4]*100)}%)`
+            ];
+            radarChart.data.datasets[0].data = target.targetMetrics;
+            radarChart.data.datasets[1].label = `${analog.shortName} (${monthName})`;
+            radarChart.data.datasets[1].data = analog.monthlyMetrics;
+            radarChart.update();
+
+            // Panel Derecho (Detalle + Botón de Exportación sincronizado)
+            document.getElementById('earth-title').textContent = analog.name;
+            document.getElementById('earth-location').textContent = `${analog.location} • Pico anual: ${analog.peakInfo.monthName} (${analog.peakInfo.score.toFixed(1)}%)`;
+            document.getElementById('earth-coords').textContent = `${analog.lat.toFixed(2)}°, ${analog.lon.toFixed(2)}°`;
+            document.getElementById('earth-datasets').textContent = analog.datasets;
+            document.getElementById('export-btn').textContent = `📥 Exportar Informe (${monthName})`;
+
+            if (focusSingleSite) {
+                map.flyTo([analog.lat, analog.lon], 5, { duration: 0.9 });
+            }
+            if (mapMarkers[rankIndex]) {
+                mapMarkers[rankIndex].openPopup();
+            }
+        }
+
+        // Actualizar Dashboard completo sincronizando Mes -> Análisis Temporal -> Similitud -> Ranking -> Mapa -> Informe
+        function updateDashboard(reframeWorldMap = true) {
+            const targetKey = document.getElementById('target-select').value;
+            const modeKey = document.getElementById('mission-mode').value;
+            const target = analogDatabase[targetKey];
+            const weightVec = MISSION_WEIGHTS[modeKey].weights;
+            const monthName = MONTHS_FULL[selectedMonthIndex];
+
+            // 1. Calcular dinámicamente el Mes Óptimo de la misión recorriendo los 12 meses
+            calculatedOptimalInfo = computeDynamicOptimalMonth(targetKey, modeKey);
+
+            // 2. Actualizar indicadores del mes seleccionado
+            document.getElementById('current-month-badge').textContent = monthName.toUpperCase();
+            document.getElementById('ranking-month-indicator').textContent = `Período: ${monthName}`;
+            renderMonthTicks();
+
+            // 3. Panel Izquierdo (Objetivo Espacial)
+            document.getElementById('planet-badge').textContent = target.planet;
+            document.getElementById('target-coords').textContent = target.coords;
+            document.getElementById('target-title').textContent = target.title;
+            document.getElementById('target-desc').textContent = target.desc;
+            document.getElementById('target-dataset').textContent = target.dataset;
+            document.getElementById('target-temp').textContent = target.temp;
+            document.getElementById('target-slope').textContent = target.slope;
+            document.getElementById('target-mineral').textContent = target.mineral;
+            document.getElementById('target-gravity').textContent = target.gravity;
+
+            // Actualizar color y relieve del terreno 3D
+            terrainMaterial.color.setHex(target.color);
+            directionalLight.color.setHex(target.color);
+            generateTerrainNoise(targetKey);
+
+            // Mostrar los pesos activos en la UI
+            renderActiveWeights(modeKey);
+
+            // 4. Evaluar todos los candidatos para el mes seleccionado y ordenarlos por ranking
+            allRankedCandidates = target.candidates
+                .map(c => {
+                    const monthDelta = c.seasonalCurve[selectedMonthIndex];
+                    const monthlyMetrics = getMonthlyEarthMetrics(c.earthMetrics, monthDelta);
+                    const mathDetails = calculateMathematicalSimilarity(target.targetMetrics, monthlyMetrics, weightVec);
+                    const peakInfo = computeCandidateBestMonth(c, target.targetMetrics, weightVec);
+                    return {
+                        ...c,
+                        monthDelta: monthDelta,
+                        monthlyMetrics: monthlyMetrics,
+                        currentScore: mathDetails.total,
+                        mathDetails: mathDetails,
+                        peakInfo: peakInfo
+                    };
+                })
+                .sort((a, b) => b.currentScore - a.currentScore);
+
+            currentTop3 = allRankedCandidates.slice(0, 3);
+
+            // 5. Actualizar todos los marcadores simultáneos en el mapa mundial y seleccionar al Ganador #1
+            updateMapMarkers();
+            selectCandidate(0, false);
+
+            if (reframeWorldMap) {
+                fitAllCandidatesOnMap();
+            }
+        }
+
+        // Bucle de animación suave para rotar el visor 3D
+        function animate() {
+            requestAnimationFrame(animate);
+            terrainMesh.rotation.z += 0.002;
+            renderer.render(scene, camera);
+        }
+
+        // Exportar Informe JSON 100% dinámico sincronizado con el mes seleccionado y todos los requisitos del Paso 4
+        function exportReport() {
+            const targetKey = document.getElementById('target-select').value;
+            const modeKey = document.getElementById('mission-mode').value;
+            const target = analogDatabase[targetKey];
+            const monthName = MONTHS_FULL[selectedMonthIndex];
+
+            const winner1 = allRankedCandidates[0];
+            const runnerUp2 = allRankedCandidates[1];
+            const runnerUp3 = allRankedCandidates[2];
+            const currentlyViewed = allRankedCandidates[selectedRankIndex];
+
+            const reportData = {
+                // 7. Fecha y período analizado
+                fechaYPeriodoAnalizado: {
+                    timestampGeneracionISO: new Date().toISOString(),
+                    periodoMensualAnalizado: monthName,
+                    indiceMes: selectedMonthIndex + 1,
+                    mesOptimoCalculadoDinamicamente: {
+                        mes: calculatedOptimalInfo.monthName,
+                        porcentajeMaximoSimilitud: `${calculatedOptimalInfo.score.toFixed(1)}%`,
+                        sitioLiderEnMesOptimo: calculatedOptimalInfo.candidateName
+                    }
+                },
+                // 1. Mes seleccionado
+                mesSeleccionado: monthName,
+                // 2. Porcentaje de similitud correspondiente al mes seleccionado
+                porcentajeSimilitudMesSeleccionado: {
+                    sitioGanadorDelMes: `${winner1.currentScore.toFixed(1)}%`,
+                    sitioActualmenteVisualizado: `${currentlyViewed.currentScore.toFixed(1)}% (${currentlyViewed.name})`
+                },
+                objetivoEspacialEvaluado: {
+                    nombre: target.title,
+                    regionPlanetaria: target.planet,
+                    coordenadas: target.coords,
+                    prioridadDePrueba: MISSION_WEIGHTS[modeKey].name,
+                    vectorPesosAplicado: MISSION_WEIGHTS[modeKey].weights,
+                    ejesEvaluados: AXIS_NAMES,
+                    vectorObjetivoEspacial: target.targetMetrics
+                },
+                // 4. Sitio ganador (#1) y sus principales indicadores
+                sitioGanadorNumero1: {
+                    puesto: 1,
+                    nombre: winner1.name,
+                    pais: winner1.country,
+                    ubicacion: winner1.location,
+                    coordenadas: { latitud: winner1.lat, longitud: winner1.lon },
+                    porcentajeSimilitudEnMes: `${winner1.currentScore.toFixed(1)}%`,
+                    desgloseMatematico: {
+                        proximidadPonderadaL1: `${winner1.mathDetails.proximity}%`,
+                        similitudCosenoPonderada: `${winner1.mathDetails.cosine}%`
+                    },
+                    indicadoresFisicosDelMes: {
+                        topografiaYPendiente: winner1.monthlyMetrics[0],
+                        mineralogia: winner1.monthlyMetrics[1],
+                        estresTermico: winner1.monthlyMetrics[2],
+                        iluminacion: winner1.monthlyMetrics[3],
+                        accesoSubsuelo: winner1.monthlyMetrics[4]
+                    },
+                    ajusteEstacionalDelMes: winner1.monthDelta,
+                    mejorMesAnualDelSitio: `${winner1.peakInfo.monthName} (${winner1.peakInfo.score.toFixed(1)}%)`,
+                    capasSatelitales: winner1.datasets
+                },
+                // 5. Puestos #2 y #3
+                puestos2y3: {
+                    puestoNumero2: {
+                        puesto: 2,
+                        nombre: runnerUp2.name,
+                        pais: runnerUp2.country,
+                        ubicacion: runnerUp2.location,
+                        coordenadas: { latitud: runnerUp2.lat, longitud: runnerUp2.lon },
+                        porcentajeSimilitudEnMes: `${runnerUp2.currentScore.toFixed(1)}%`,
+                        indicadoresFisicosDelMes: runnerUp2.monthlyMetrics,
+                        ajusteEstacionalDelMes: runnerUp2.monthDelta
+                    },
+                    puestoNumero3: {
+                        puesto: 3,
+                        nombre: runnerUp3.name,
+                        pais: runnerUp3.country,
+                        ubicacion: runnerUp3.location,
+                        coordenadas: { latitud: runnerUp3.lat, longitud: runnerUp3.lon },
+                        porcentajeSimilitudEnMes: `${runnerUp3.currentScore.toFixed(1)}%`,
+                        indicadoresFisicosDelMes: runnerUp3.monthlyMetrics,
+                        ajusteEstacionalDelMes: runnerUp3.monthDelta
+                    }
+                },
+                // 6. Advertencia de la brecha de ingeniería ("Reality Gap")
+                advertenciaRealityGap: {
+                    sitioEvaluado: currentlyViewed.name,
+                    limitacionesFisicasLunaMarteVsTierra: currentlyViewed.gap,
+                    condicionClimaticaDelMesSeleccionado: currentlyViewed.monthDelta === 0
+                        ? `En ${monthName} el sitio opera en su pico estacional de fidelidad física sin penalizaciones meteorológicas.`
+                        : `En ${monthName} el sitio presenta una penalización estacional de ${currentlyViewed.monthDelta} puntos debido a: ${currentlyViewed.offSeasonReason}`,
+                    gravedadObjetivoEspacial: target.gravity,
+                    temperaturaMediaObjetivoEspacial: target.temp
+                },
+                // 3. Ranking completo de los sitios candidatos para ese período
+                rankingCompletoDelPeriodo: allRankedCandidates.map((c, idx) => ({
+                    puesto: idx + 1,
+                    nombre: c.name,
+                    pais: c.country,
+                    ubicacion: c.location,
+                    coordenadas: `${c.lat.toFixed(2)}°, ${c.lon.toFixed(2)}°`,
+                    porcentajeSimilitud: `${c.currentScore.toFixed(1)}%`,
+                    metricasDelMes: c.monthlyMetrics,
+                    ajusteEstacional: c.monthDelta,
+                    mesOptimoIndividual: `${c.peakInfo.monthName} (${c.peakInfo.score.toFixed(1)}%)`
+                }))
+            };
+
+            const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `informe-gemelo-${targetKey}-${modeKey}-${monthName.toLowerCase()}.json`;
+            a.click();
+        }
+
+        document.getElementById('target-select').addEventListener('change', () => updateDashboard(true));
+        document.getElementById('mission-mode').addEventListener('change', () => updateDashboard(true));
+        document.getElementById('month-slider').addEventListener('input', (e) => {
+            selectedMonthIndex = parseInt(e.target.value, 10);
+            updateDashboard(false);
+        });
+
+        // Inicializar al cargar y arrancar animación
+        updateDashboard(true);
+        animate();
+
+        // Manejar redimensionamiento de ventana
+        window.addEventListener('resize', () => {
+            const width = container3D.clientWidth;
+            const height = container3D.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        });
+    </script>
+</body>
+</html>

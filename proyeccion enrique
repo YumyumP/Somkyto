@@ -152,6 +152,32 @@
             50% { transform: scale(1.08); }
             100% { transform: scale(1); }
         }
+        /* PASO 5: estilos del informe */
+        .report-sheet { background:#0f1626; border:1px solid rgba(56,189,248,.3); color:#e2e8f0; }
+        .report-sheet h2 { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#38bdf8; font-weight:800; border-bottom:1px solid #1e293b; padding-bottom:6px; margin:26px 0 10px; }
+        .report-sheet p, .report-sheet li { font-size:13px; line-height:1.6; color:#cbd5e1; }
+        .report-sheet table { width:100%; border-collapse:collapse; font-size:12px; }
+        .report-sheet th { text-align:right; color:#94a3b8; font-weight:600; font-size:10px; text-transform:uppercase; padding:5px 8px; border-bottom:1px solid #334155; }
+        .report-sheet th:first-child, .report-sheet td:first-child { text-align:left; }
+        .report-sheet td { text-align:right; padding:5px 8px; border-bottom:1px solid #1e293b; font-family:ui-monospace,Menlo,monospace; }
+        .report-sheet td:first-child { font-family:inherit; color:#e2e8f0; }
+        .report-sheet tfoot td { font-weight:800; color:#fff; border-top:1px solid #475569; }
+        .rep-head { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+        .rep-head div { background:#0b1220; border:1px solid #1e293b; border-radius:10px; padding:8px 10px; }
+        .rep-head small { display:block; font-size:9px; letter-spacing:.12em; color:#64748b; text-transform:uppercase; }
+        .rep-head b { font-size:14px; color:#fff; }
+        .rep-box { background:#0b1220; border:1px solid #1e293b; border-radius:10px; padding:10px 14px; }
+        .rep-bar { height:8px; border-radius:99px; background:#1e293b; overflow:hidden; }
+        .rep-bar > span { display:block; height:100%; background:linear-gradient(90deg,#10b981,#38bdf8); }
+        @media print {
+            body > *:not(#report-overlay) { display:none !important; }
+            #report-overlay { position:static !important; background:#fff !important; padding:0 !important; display:block !important; }
+            .no-print { display:none !important; }
+            .report-sheet { background:#fff !important; color:#0f172a !important; border:none !important; }
+            .report-sheet p, .report-sheet li, .report-sheet td, .report-sheet td:first-child, .report-sheet b { color:#0f172a !important; }
+            .report-sheet h2 { color:#0369a1 !important; }
+            .rep-box, .rep-head div { background:#f8fafc !important; border-color:#cbd5e1 !important; }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -398,13 +424,30 @@
                     <span class="text-slate-400 block text-[10px] uppercase">Capas NASA / Abiertas</span>
                     <span id="earth-datasets" class="font-mono text-emerald-300 text-[11px]">ASTER GDEM • MODIS LST • SMAP</span>
                 </div>
-                <button id="export-btn" onclick="exportReport()" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg transition text-xs shadow-lg shadow-sky-600/20 shrink-0">
-                    📥 Exportar Informe (Julio)
-                </button>
+                <div class="flex gap-1.5 shrink-0">
+                    <button id="report-btn" onclick="openAnalysisReport()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition text-xs shadow-lg shadow-emerald-600/20">
+                        📄 Informe de Análisis
+                    </button>
+                    <button id="export-btn" onclick="exportReport()" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg transition text-xs shadow-lg shadow-sky-600/20">
+                        📥 JSON (Julio)
+                    </button>
+                </div>
             </div>
         </section>
 
     </main>
+
+    <!-- PASO 5: Informe de Análisis Planetario (modal) -->
+    <div id="report-overlay" class="hidden fixed inset-0 z-[2000] bg-black/70 backdrop-blur-sm overflow-y-auto p-4">
+        <div class="max-w-3xl mx-auto my-4">
+            <div class="no-print flex flex-wrap justify-end gap-2 mb-2">
+                <button onclick="downloadReportText()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 rounded-lg text-xs font-semibold">⬇ Descargar .txt</button>
+                <button onclick="window.print()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-semibold">🖨 Imprimir / PDF</button>
+                <button onclick="closeAnalysisReport()" class="px-3 py-1.5 bg-rose-700 hover:bg-rose-600 text-white rounded-lg text-xs font-semibold">✕ Cerrar</button>
+            </div>
+            <article id="report-content" class="report-sheet rounded-2xl p-6 sm:p-8"></article>
+        </div>
+    </div>
 
     <script>
         // Nombres de los 12 meses para el Análisis Temporal
@@ -1117,7 +1160,7 @@
             document.getElementById('earth-location').textContent = `${analog.location} • Pico anual: ${analog.peakInfo.monthName} (${analog.peakInfo.score.toFixed(1)}%)`;
             document.getElementById('earth-coords').textContent = `${analog.lat.toFixed(2)}°, ${analog.lon.toFixed(2)}°`;
             document.getElementById('earth-datasets').textContent = analog.datasets;
-            document.getElementById('export-btn').textContent = `📥 Exportar Informe (${monthName})`;
+            document.getElementById('export-btn').textContent = `📥 JSON (${monthName})`;
 
             if (focusSingleSite) {
                 map.flyTo([analog.lat, analog.lon], 5, { duration: 0.9 });
@@ -1315,6 +1358,281 @@
             a.download = `informe-gemelo-${targetKey}-${modeKey}-${monthName.toLowerCase()}.json`;
             a.click();
         }
+
+        // =====================================================================
+        // PASO 5 — INFORME DE ANÁLISIS PLANETARIO (generado 100% desde el motor)
+        // =====================================================================
+        const AXIS_FULL = ['Topografía', 'Mineralogía', 'Estrés térmico', 'Iluminación', 'Subsuelo'];
+        const PLANET_NOTES = {
+            LUNA: 'La Luna no tiene atmósfera (vacío casi total), su gravedad es ~1/6 de la terrestre (1,62 vs 9,81 m/s²), el regolito es extremadamente abrasivo y la radiación cósmica llega sin filtro. Un análogo terrestre solo reproduce parte de estas condiciones: hay que compensar presión, convección térmica, gravedad y polvo mediante simulación o pruebas complementarias.',
+            MARTE: 'Marte tiene una atmósfera muy tenue (~0,6% de la presión terrestre, dominada por CO₂), gravedad de 3,72 m/s² (~38% de la terrestre), suelos con percloratos y mayor radiación en superficie. Un análogo terrestre reproduce bien geología y clima, pero no presión, composición atmosférica ni gravedad: estas diferencias deben compensarse en el diseño de las pruebas.'
+        };
+        let reportCharts = [];
+        let lastReportModel = null;
+
+        const fmt = (n, d = 1) => Number(n).toFixed(d).replace('.', ',');
+
+        function buildReportModel() {
+            const targetKey = document.getElementById('target-select').value;
+            const modeKey = document.getElementById('mission-mode').value;
+            const target = analogDatabase[targetKey];
+            const weights = MISSION_WEIGHTS[modeKey].weights;
+            const winner = allRankedCandidates[0];
+            const total = allRankedCandidates.length;
+
+            const rows = AXIS_FULL.map((name, i) => {
+                const t = target.targetMetrics[i];
+                const e = winner.monthlyMetrics[i];
+                const sim = Math.max(0, 100 - 1.35 * Math.abs(t - e));
+                return { name, weight: weights[i], target: t, earth: e, sim, contrib: weights[i] * sim };
+            });
+            const prox = rows.reduce((s, r) => s + r.contrib, 0);
+
+            const series = target.candidates.map(c => ({
+                id: c.id,
+                name: c.shortName,
+                isWinner: c.id === winner.id,
+                data: MONTHS_FULL.map((_, m) => calculateMathematicalSimilarity(
+                    target.targetMetrics,
+                    getMonthlyEarthMetrics(c.earthMetrics, c.seasonalCurve[m]),
+                    weights).total)
+            }));
+
+            const planetKey = target.planet.split(' ')[0];
+            const planetName = planetKey === 'LUNA' ? 'Luna' : 'Marte';
+
+            // Nivel de Reality Gap: (100 - similitud) + 0.5·|ajuste estacional| + factor ambiental del cuerpo
+            const envFactor = planetKey === 'LUNA' ? 8 : 5;
+            const gapIndex = (100 - winner.currentScore) + 0.5 * Math.abs(winner.monthDelta) + envFactor;
+            const gapLevel = gapIndex < 15 ? 'BAJO' : (gapIndex < 25 ? 'MODERADO' : 'ALTO');
+
+            const sorted = [...rows].sort((a, b) => b.sim - a.sim);
+            let strengths = sorted.filter(r => r.sim >= 90).slice(0, 3);
+            if (!strengths.length) strengths = sorted.slice(0, 2);
+            const weakRows = [...rows].sort((a, b) => a.sim - b.sim).filter(r => r.sim < 92).slice(0, 2);
+
+            return {
+                targetKey, modeKey, target, weights, winner, total, rows, prox, series,
+                planetKey, planetName, gapIndex, gapLevel, strengths, weakRows,
+                monthName: MONTHS_FULL[selectedMonthIndex],
+                second: allRankedCandidates[1],
+                modeName: MISSION_WEIGHTS[modeKey].name,
+                generated: new Date().toLocaleString('es-CL')
+            };
+        }
+
+        function reportTexts(M) {
+            const w = M.winner;
+            const topNames = M.strengths.slice(0, 2).map(r => r.name.toLowerCase()).join(' y ');
+            const lead = M.second ? ` Supera al segundo lugar (${M.second.name}, ${fmt(M.second.currentScore)}%) por ${fmt(w.currentScore - M.second.currentScore)} puntos.` : '';
+            const summary = `${w.name} (${w.location}) es el mejor análogo terrestre de ${M.target.title} para ${M.monthName}, con una similitud global de ${fmt(w.currentScore)}% bajo la prioridad «${M.modeName}». Sus mayores coincidencias están en ${topNames}.${lead} Su mejor mes del año es ${w.peakInfo.monthName} (${fmt(w.peakInfo.score)}%).`;
+
+            const strengthLines = M.strengths.map(r => `${r.name}: ${fmt(r.sim)}% de similitud (objetivo ${r.target} vs. sitio ${r.earth}), con un peso de ${Math.round(r.weight * 100)}%.`);
+            if (w.monthDelta === 0) strengthLines.push(`${M.monthName} coincide con el pico estacional del sitio: sin penalización climática.`);
+
+            const limitLines = M.weakRows.map(r => `${r.name}: solo ${fmt(r.sim)}% de similitud (objetivo ${r.target} vs. sitio ${r.earth}).`);
+            if (!M.weakRows.length) limitLines.push('Ninguna variable cae por debajo de 92% de similitud.');
+            if (w.monthDelta <= -5) limitLines.push(`Condición estacional adversa en ${M.monthName} (${w.monthDelta} pts): ${w.offSeasonReason}`);
+            else if (w.monthDelta < 0) limitLines.push(`Ajuste estacional leve en ${M.monthName} (${w.monthDelta} pts): ${w.offSeasonReason}`);
+            limitLines.push(w.gap);
+
+            const gapText = `${w.gap} ${M.planetKey === 'LUNA' || M.planetKey === 'MARTE' ? PLANET_NOTES[M.planetKey] : ''}`;
+
+            const conclusion = `Para ${M.target.title} (${M.planetName}) en ${M.monthName}, se recomienda ${w.name} como sitio de pruebas prioritario (${fmt(w.currentScore)}% de similitud, Reality Gap ${M.gapLevel}). ${w.peakInfo.monthName === M.monthName ? 'El período analizado coincide con su mes óptimo.' : `El mes óptimo del sitio es ${w.peakInfo.monthName} (${fmt(w.peakInfo.score)}%); conviene planificar las campañas allí si el calendario lo permite.`} Los resultados deben validarse con compensaciones de ingeniería para las diferencias de gravedad, presión y radiación.`;
+
+            return { summary, strengthLines, limitLines, gapText, conclusion };
+        }
+
+        function renderAnalysisReport(M) {
+            const w = M.winner;
+            const T = reportTexts(M);
+            const medals = ['🥇', '🥈', '🥉', '&nbsp;&nbsp;&nbsp;'];
+            const gapColor = M.gapLevel === 'BAJO' ? '#34d399' : (M.gapLevel === 'MODERADO' ? '#fbbf24' : '#fb7185');
+            const sources = [M.target.dataset, w.datasets].join(' • ');
+
+            const rowsHtml = M.rows.map(r => `
+                <tr><td>${r.name}</td><td>${Math.round(r.weight * 100)}%</td><td>${r.target} / ${r.earth}</td><td>${fmt(r.sim)}%</td><td>${fmt(r.contrib)}</td></tr>`).join('');
+
+            const rankingHtml = allRankedCandidates.map((c, i) => `
+                <div style="display:grid;grid-template-columns:28px 1fr 64px;gap:8px;align-items:center;margin:6px 0;">
+                    <span style="font-size:16px;">${medals[Math.min(i, 3)]}</span>
+                    <div><div style="font-size:12px;color:#e2e8f0;">${c.name} <span style="color:#64748b;">· ${c.country}</span></div>
+                    <div class="rep-bar" style="margin-top:3px;"><span style="width:${Math.max(0, Math.min(100, c.currentScore))}%;"></span></div></div>
+                    <b style="text-align:right;font-family:ui-monospace,monospace;font-size:13px;">${fmt(c.currentScore)}%</b>
+                </div>`).join('');
+
+            return `
+                <div style="text-align:center;margin-bottom:14px;">
+                    <div style="font-size:10px;letter-spacing:.3em;color:#38bdf8;">NASA SPACE APPS 2026</div>
+                    <h1 style="font-size:20px;font-weight:800;color:#fff;letter-spacing:.08em;">PLANETARY ANALOG ANALYSIS</h1>
+                </div>
+                <div class="rep-head">
+                    <div><small>Objetivo</small><b>${M.planetName} · ${M.target.title}</b></div>
+                    <div><small>Sitio recomendado</small><b>${w.name}</b></div>
+                    <div><small>Período analizado</small><b>${M.monthName}</b></div>
+                    <div><small>Similitud global</small><b style="color:#34d399;">${fmt(w.currentScore)}%</b></div>
+                    <div><small>Ranking</small><b>🥇 #1 de ${M.total} candidatos</b></div>
+                </div>
+
+                <h2>1. Resumen</h2>
+                <p><b style="color:#fff;">¿Por qué este sitio fue seleccionado?</b></p>
+                <p>${T.summary}</p>
+
+                <h2>2. ¿Por qué ${fmt(w.currentScore)}%?</h2>
+                <table>
+                    <thead><tr><th>Variable</th><th>Peso</th><th>Obj. / Sitio</th><th>Similitud</th><th>Aporte</th></tr></thead>
+                    <tbody>${rowsHtml}</tbody>
+                    <tfoot>
+                        <tr><td colspan="4">Σ Proximidad ponderada (L1)</td><td>${fmt(M.prox)}</td></tr>
+                        <tr><td colspan="4">Similitud coseno ponderada</td><td>${fmt(w.mathDetails.cosine)}</td></tr>
+                        <tr><td colspan="4">Índice final = 0,85·Prox + 0,15·Cos</td><td style="color:#34d399;">${fmt(w.currentScore)}</td></tr>
+                    </tfoot>
+                </table>
+                <div style="position:relative;height:210px;margin-top:12px;"><canvas id="rep-contrib-chart"></canvas></div>
+
+                <h2>3. Análisis temporal</h2>
+                <div style="position:relative;height:230px;"><canvas id="rep-month-chart"></canvas></div>
+                <div class="rep-box" style="margin-top:10px;text-align:center;">
+                    <small style="font-size:10px;letter-spacing:.14em;color:#64748b;">🏆 MES ÓPTIMO DEL SITIO</small><br>
+                    <b style="font-size:16px;color:#fff;">${w.peakInfo.monthName.toUpperCase()} — ${fmt(w.peakInfo.score)}%</b>
+                    <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Óptimo global de la misión: ${calculatedOptimalInfo.monthName} — ${fmt(calculatedOptimalInfo.score)}% (${calculatedOptimalInfo.candidateName})</div>
+                </div>
+
+                <h2>4. Ranking de candidatos</h2>
+                ${rankingHtml}
+
+                <h2>5. Fortalezas y limitaciones</h2>
+                <div class="rep-box"><p style="color:#34d399;font-weight:700;">✅ Principales fortalezas</p><ul style="padding-left:18px;list-style:disc;">${T.strengthLines.map(l => `<li>${l}</li>`).join('')}</ul></div>
+                <div class="rep-box" style="margin-top:8px;"><p style="color:#fbbf24;font-weight:700;">⚠️ Principales limitaciones</p><ul style="padding-left:18px;list-style:disc;">${T.limitLines.map(l => `<li>${l}</li>`).join('')}</ul></div>
+
+                <h2>6. Reality Gap</h2>
+                <div class="rep-box">
+                    <p>Nivel: <b style="color:${gapColor};font-size:15px;">${M.gapLevel}</b> <span style="font-size:11px;color:#64748b;">(índice ${fmt(M.gapIndex)})</span></p>
+                    <p style="margin-top:6px;">${T.gapText}</p>
+                </div>
+
+                <h2>7. Conclusión</h2>
+                <p>${T.conclusion}</p>
+
+                <h2>Metodología</h2>
+                <div class="rep-box" style="font-size:12px;">
+                    <p><b style="color:#fff;">Variables utilizadas:</b> ${AXIS_FULL.join(', ')} (escala normalizada 0–100).</p>
+                    <p><b style="color:#fff;">Pesos utilizados (${M.modeName}):</b> ${AXIS_FULL.map((n, i) => `${n} ${Math.round(M.weights[i] * 100)}%`).join(' · ')}.</p>
+                    <p><b style="color:#fff;">Método de cálculo:</b> similitud por eje = máx(0, 100 − 1,35·|objetivo − sitio|); Proximidad = Σ Wᵢ·similitudᵢ; Coseno ponderado entre vectores; Índice = 0,85·Proximidad + 0,15·Coseno. Las métricas del sitio se ajustan cada mes con una curva estacional (sensibilidad por eje). Reality Gap = (100 − similitud) + 0,5·|ajuste estacional| + factor ambiental (Luna 8, Marte 5): &lt;15 bajo, &lt;25 moderado, ≥25 alto.</p>
+                    <p><b style="color:#fff;">Fuente de datos:</b> ${sources}. Las métricas son valores normalizados precargados en este prototipo a partir de esas capas; no se consultan en vivo.</p>
+                    <p><b style="color:#fff;">Fecha de generación:</b> ${M.generated}</p>
+                </div>`;
+        }
+
+        function drawReportCharts(M) {
+            reportCharts.forEach(c => c.destroy());
+            reportCharts = [];
+            const tick = '#94a3b8', grid = 'rgba(148,163,184,0.2)';
+
+            reportCharts.push(new Chart(document.getElementById('rep-contrib-chart'), {
+                type: 'bar',
+                data: {
+                    labels: M.rows.map(r => r.name),
+                    datasets: [
+                        { label: 'Máximo posible (peso×100)', data: M.rows.map(r => r.weight * 100), backgroundColor: 'rgba(100,116,139,0.45)' },
+                        { label: 'Aporte real', data: M.rows.map(r => Number(r.contrib.toFixed(1))), backgroundColor: '#10b981' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { ticks: { color: tick }, grid: { color: grid } }, y: { ticks: { color: tick }, grid: { color: grid } } },
+                    plugins: { legend: { labels: { color: tick, font: { size: 10 } } } }
+                }
+            }));
+
+            const palette = ['#818cf8', '#f59e0b', '#f43f5e', '#94a3b8'];
+            const all = M.series.flatMap(s => s.data);
+            const peakIdx = M.winner.peakInfo.monthIndex;
+            let k = 0;
+            reportCharts.push(new Chart(document.getElementById('rep-month-chart'), {
+                type: 'line',
+                data: {
+                    labels: MONTHS_SHORT,
+                    datasets: M.series.map(s => {
+                        const col = s.isWinner ? '#10b981' : palette[k++ % palette.length];
+                        return {
+                            label: s.name + (s.isWinner ? ' (#1)' : ''),
+                            data: s.data,
+                            borderColor: col, backgroundColor: col,
+                            borderWidth: s.isWinner ? 3 : 1.5,
+                            tension: 0.3,
+                            pointRadius: s.isWinner ? s.data.map((_, m) => m === peakIdx ? 7 : (m === selectedMonthIndex ? 5 : 2)) : 1.5
+                        };
+                    })
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { min: Math.floor(Math.min(...all) / 5) * 5 - 5, max: 100, ticks: { color: tick }, grid: { color: grid }, title: { display: true, text: 'Similitud (%)', color: tick } },
+                        x: { ticks: { color: tick }, grid: { color: grid } }
+                    },
+                    plugins: { legend: { labels: { color: tick, font: { size: 10 } } } }
+                }
+            }));
+        }
+
+        function openAnalysisReport() {
+            const M = buildReportModel();
+            lastReportModel = M;
+            document.getElementById('report-content').innerHTML = renderAnalysisReport(M);
+            document.getElementById('report-overlay').classList.remove('hidden');
+            document.getElementById('report-overlay').scrollTop = 0;
+            drawReportCharts(M);
+        }
+
+        function closeAnalysisReport() {
+            document.getElementById('report-overlay').classList.add('hidden');
+        }
+
+        function downloadReportText() {
+            const M = lastReportModel || buildReportModel();
+            const w = M.winner;
+            const T = reportTexts(M);
+            const line = '━'.repeat(36), thin = '─'.repeat(36);
+            const pad = (s, n) => String(s).padEnd(n);
+            const medals = ['🥇', '🥈', '🥉', '  '];
+            const out = [
+                line, '       PLANETARY ANALOG ANALYSIS', line,
+                'OBJETIVO', `${M.planetName} — ${M.target.title}`,
+                'SITIO RECOMENDADO', w.name,
+                'PERÍODO ANALIZADO', M.monthName,
+                'SIMILITUD GLOBAL', `${fmt(w.currentScore)}%`,
+                'RANKING', `🥇 #1 de ${M.total} candidatos`, '',
+                '1. RESUMEN', thin, T.summary, '',
+                `2. ¿POR QUÉ ${fmt(w.currentScore)}%?`, thin,
+                pad('Variable', 16) + pad('Peso', 8) + pad('Similitud', 12) + 'Aporte',
+                ...M.rows.map(r => pad(r.name, 16) + pad(Math.round(r.weight * 100) + '%', 8) + pad(fmt(r.sim) + '%', 12) + fmt(r.contrib)),
+                `Proximidad L1: ${fmt(M.prox)} | Coseno: ${fmt(w.mathDetails.cosine)} | Índice = 0,85·Prox + 0,15·Cos = ${fmt(w.currentScore)}`, '',
+                '3. ANÁLISIS TEMPORAL', thin,
+                ...MONTHS_FULL.map((m, i) => pad(m, 12) + fmt(M.series.find(s => s.isWinner).data[i]) + '%'),
+                `🏆 MES ÓPTIMO: ${w.peakInfo.monthName.toUpperCase()} — ${fmt(w.peakInfo.score)}%`, '',
+                '4. RANKING DE CANDIDATOS', thin,
+                ...allRankedCandidates.map((c, i) => `${medals[Math.min(i, 3)]} ${pad(c.name, 36)} ${fmt(c.currentScore)}%`), '',
+                '5. FORTALEZAS Y LIMITACIONES', thin,
+                '✅ Principales fortalezas', ...T.strengthLines.map(l => ' - ' + l),
+                '⚠️ Principales limitaciones', ...T.limitLines.map(l => ' - ' + l), '',
+                '6. REALITY GAP', thin, `Nivel: ${M.gapLevel} (índice ${fmt(M.gapIndex)})`, T.gapText, '',
+                '7. CONCLUSIÓN', thin, T.conclusion, '',
+                'METODOLOGÍA', thin,
+                `Variables: ${AXIS_FULL.join(', ')}`,
+                `Pesos (${M.modeName}): ${AXIS_FULL.map((n, i) => n + ' ' + Math.round(M.weights[i] * 100) + '%').join(', ')}`,
+                'Método: similitud por eje = máx(0, 100 − 1,35·|obj − sitio|); Índice = 0,85·Proximidad ponderada + 0,15·Coseno ponderado; ajuste estacional mensual por sitio.',
+                `Fuente de datos: ${M.target.dataset} • ${w.datasets} (métricas normalizadas precargadas en el prototipo)`,
+                `Fecha de generación: ${M.generated}`, line
+            ].join('\n');
+            const blob = new Blob([out], { type: 'text/plain;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `analisis-${M.targetKey}-${M.modeKey}-${M.monthName.toLowerCase()}.txt`;
+            a.click();
+        }
+
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAnalysisReport(); });
 
         document.getElementById('target-select').addEventListener('change', () => updateDashboard(true));
         document.getElementById('mission-mode').addEventListener('change', () => updateDashboard(true));

@@ -18,6 +18,9 @@
     <!-- Three.js para el Visor Topográfico 3D -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
+    <!-- html2pdf.js para descarga directa de PDF sin ventana de impresión -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <style>
         body {
             background-color: #0b0f19;
@@ -442,7 +445,7 @@
         <div class="max-w-3xl mx-auto my-4">
             <div class="no-print flex flex-wrap justify-end gap-2 mb-2">
                 <button onclick="downloadReportText()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 rounded-lg text-xs font-semibold">⬇ Descargar .txt</button>
-                <button onclick="window.print()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-semibold">🖨 Imprimir / PDF</button>
+                <button id="btn-download-pdf" onclick="downloadReportPDF()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-semibold">⬇ Descargar PDF</button>
                 <button onclick="closeAnalysisReport()" class="px-3 py-1.5 bg-rose-700 hover:bg-rose-600 text-white rounded-lg text-xs font-semibold">✕ Cerrar</button>
             </div>
             <article id="report-content" class="report-sheet rounded-2xl p-6 sm:p-8"></article>
@@ -1587,6 +1590,47 @@
 
         function closeAnalysisReport() {
             document.getElementById('report-overlay').classList.add('hidden');
+        }
+
+        async function downloadReportPDF() {
+            const M = lastReportModel || buildReportModel();
+            const btn = document.getElementById('btn-download-pdf');
+            const reportEl = document.getElementById('report-content');
+            if (!reportEl) return;
+
+            const filename = `analisis-${M.targetKey}-${M.modeKey}-${M.monthName.toLowerCase()}.pdf`;
+            const originalText = btn ? btn.textContent : '⬇ Descargar PDF';
+
+            try {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = '⏳ Generando PDF…';
+                }
+
+                const opt = {
+                    margin: [8, 8, 8, 8],
+                    filename: filename,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: {
+                        scale: 2,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#0f1626',
+                        logging: false
+                    },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                };
+
+                await html2pdf().set(opt).from(reportEl).save();
+            } catch (err) {
+                console.error('Error al generar el PDF:', err);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
+            }
         }
 
         function downloadReportText() {

@@ -2,173 +2,253 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planetary Twin Matcher | NASA Space Apps 2026</title>
-    
-    <!-- Tailwind CSS para estilos rápidos y limpios -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>somkyto | Análogos Terrestres & Cartografía Planetaria • NASA Space Apps 2026</title>
+
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Leaflet CSS & JS para mapas satelitales interactivos -->
+
+    <!-- Leaflet CSS & JS (Mapa Satelital Terrestre) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <!-- Chart.js para el gráfico de radar científico -->
+
+    <!-- Chart.js (Radar Científico y Gráficos de Informe) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Three.js para el Visor Topográfico 3D -->
+    <!-- Three.js (Visor Topográfico 3D) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-    <style>
-        body {
-            background-color: #0b0f19;
-            color: #e2e8f0;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-        }
-        .glass-panel {
-            background: rgba(17, 24, 39, 0.85);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(56, 189, 248, 0.2);
-        }
-        #earth-map {
-            height: 100%;
-            min-height: 360px;
-            border-radius: 0.75rem;
-            z-index: 1;
-        }
-        /* Contenedor del visor 3D Three.js */
-        #canvas-3d-container {
-            width: 100%;
-            height: 210px;
-            border-radius: 0.75rem;
-            overflow: hidden;
-            position: relative;
-            background: #020617;
-        }
-        .topo-grid {
-            background-image: 
-                linear-gradient(to right, rgba(56, 189, 248, 0.08) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
-            background-size: 20px 20px;
-        }
-    </style>
+    <!-- Estilos Unificados -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <!-- Navbar Superior -->
-    <header class="glass-panel border-b border-slate-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-sky-500/20">
-                PTM
+    <!-- Navbar Superior Unificado -->
+    <header class="glass-panel border-b border-slate-800 px-5 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-50">
+        <!-- Identidad del Proyecto + Navegación entre Módulos -->
+        <div class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center gap-3.5">
+                <div class="w-12 h-12 rounded-xl bg-black border border-sky-500/40 overflow-hidden flex items-center justify-center shadow-lg shadow-sky-500/20 shrink-0">
+                    <img src="data:image/png;base64,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" alt="Logo somkyto" class="w-full h-full object-contain p-0.5" />
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-extrabold tracking-wider text-white leading-tight">somkyto</h1>
+                    <p class="text-[11px] text-sky-400">Análogos Terrestres & Cartografía Planetaria • NASA Space Apps 2026</p>
+                </div>
             </div>
-            <div>
-                <h1 class="text-lg font-bold tracking-wide text-white">PLANETARY TWIN MATCHER</h1>
-                <p class="text-xs text-sky-400">Motor de Análogos Terrestres • NASA Space Apps 2026</p>
-            </div>
+
+            <!-- Selector de Vista Principal (Botones superiores de Luna y Marte eliminados; acceso desde el primer cuadro) -->
+            <nav class="flex flex-wrap items-center bg-slate-950/80 p-1 rounded-xl border border-slate-800 gap-1" aria-label="Módulos del sistema">
+                <button type="button" id="tab-matcher" class="nav-tab active px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                    <span>🛰️</span>
+                    <span>Gemelo Planetario</span>
+                </button>
+                <button type="button" id="tab-lunar" class="hidden"></button>
+                <button type="button" id="tab-mars" class="hidden"></button>
+            </nav>
         </div>
 
-        <!-- Controles de Misión -->
-        <div class="flex flex-wrap items-center gap-3">
+        <!-- Controles de Misión (Activos en Vista Gemelo Planetario) -->
+        <div id="matcher-controls" class="flex flex-wrap items-center gap-3">
             <div>
-                <label class="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">Objetivo Espacial</label>
-                <select id="target-select" class="bg-slate-900 border border-slate-700 text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
-                    <option value="shackleton">Luna: Cráter Shackleton (Polo Sur)</option>
-                    <option value="marius">Luna: Colinas Marius (Tubos de Lava)</option>
-                    <option value="jezero">Marte: Cráter Jezero (Delta Antiguo)</option>
-                    <option value="arcadia">Marte: Arcadia Planitia (Hielo Subsuperficial)</option>
+                <label for="target-select" class="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">Objetivo Espacial</label>
+                <select id="target-select" class="bg-slate-900 border border-slate-700 text-xs sm:text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                    <optgroup label="Objetivos Preconfigurados (Luna y Marte)">
+                        <option value="shackleton">Luna: Cráter Shackleton (Polo Sur)</option>
+                        <option value="marius">Luna: Colinas Marius (Tubos de Lava)</option>
+                        <option value="jezero">Marte: Cráter Jezero (Delta Antiguo)</option>
+                        <option value="arcadia">Marte: Arcadia Planitia (Hielo Subsuperficial)</option>
+                    </optgroup>
+                    <optgroup id="custom-lunar-targets-group" label="Importados desde Cartografía Lunar" hidden></optgroup>
+                    <optgroup id="custom-mars-targets-group" label="Importados desde Cartografía Marciana" hidden></optgroup>
                 </select>
             </div>
 
             <div>
-                <label class="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">Prioridad de Prueba</label>
-                <select id="mission-mode" class="bg-slate-900 border border-slate-700 text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
-                    <option value="balanced">Equilibrado (Base Permanente)</option>
-                    <option value="mobility">Movilidad y Navegación de Rovers</option>
-                    <option value="isru">Geología y Extracción (ISRU)</option>
-                    <option value="subsurface">Hábitats Subterráneos y Radiación</option>
+                <label for="mission-mode" class="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">Prioridad de Prueba (Vector W)</label>
+                <select id="mission-mode" class="bg-slate-900 border border-slate-700 text-xs sm:text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                    <option value="balanced">Equilibrado (Base Permanente — 20% c/u)</option>
+                    <option value="mobility">Movilidad y Navegación de Rovers (Topo 40% / Ilum 25%)</option>
+                    <option value="isru">Geología y Extracción ISRU (Mineralogía 50%)</option>
+                    <option value="subsurface">Hábitats Subterráneos y Radiación (Subsuelo 45% / Térm 25%)</option>
                 </select>
             </div>
         </div>
     </header>
 
-    <!-- Contenido Principal -->
-    <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] w-full mx-auto">
+    <!-- ===================================================================== -->
+    <!-- MÓDULO 1: PLANETARY TWIN MATCHER (COMPARADOR Y MOTOR MATEMÁTICO)      -->
+    <!-- ===================================================================== -->
+    <main id="view-matcher" class="flex-1 p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 max-w-[1600px] w-full mx-auto">
 
-        <!-- Columna Izquierda: Objetivo Espacial & Visor 3D (4 cols) -->
-        <section class="lg:col-span-4 glass-panel rounded-2xl p-5 flex flex-col justify-between">
-            <div>
-                <div class="flex items-center justify-between mb-3">
-                    <span id="planet-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                        LUNA • ARTEMIS ZONE
-                    </span>
-                    <span id="target-coords" class="text-xs font-mono text-slate-400">89.9° S, 0.0° E</span>
+        <!-- Columna Izquierda: Objetivo Espacial & Accesos Visuales a Marte y Luna (4 cols) -->
+        <section class="lg:col-span-4 glass-panel rounded-2xl p-4 flex flex-col justify-between gap-3">
+            <div class="flex-1 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-2.5">
+                        <span id="planet-badge" class="px-3 py-1 text-xs font-semibold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            LUNA • ARTEMIS ZONE
+                        </span>
+                        <span id="target-coords" class="text-xs font-mono text-slate-400">89.90° S, 0.00° E</span>
+                    </div>
+
+                    <h2 id="target-title" class="text-2xl font-bold text-white mb-1.5">Cráter Shackleton</h2>
+                    <p id="target-desc" class="text-sm text-slate-300 leading-relaxed mb-4">
+                        Bordes con iluminación casi continua y fondo en sombra permanente (PSR) con hielo de agua y pendientes críticas para descenso.
+                    </p>
                 </div>
-                
-                <h2 id="target-title" class="text-xl font-bold text-white mb-2">Cráter Shackleton</h2>
-                <p id="target-desc" class="text-sm text-slate-300 leading-relaxed mb-4">
-                    Región de luz eterna en los bordes y sombra permanente (PSR) en el interior con altas reservas de hielo de agua y pendientes pronunciadas.
-                </p>
 
-                <!-- Visor Topográfico 3D con Three.js -->
-                <div class="mb-4 relative border border-slate-700 rounded-xl overflow-hidden shadow-inner">
-                    <div id="canvas-3d-container"></div>
-                    <div class="topo-grid absolute inset-0 pointer-events-none"></div>
-                    <div class="absolute bottom-2 left-2 right-2 z-10 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/80 flex justify-between items-center text-[10px]">
-                        <div>
-                            <span class="text-slate-400 uppercase block">Modelo 3D Malla Digital</span>
-                            <span id="target-dataset" class="font-mono text-sky-300">LRO LOLA + M3 + Diviner</span>
+                <!-- Contenedor 3D oculto para mantener compatibilidad interna con app.js -->
+                <div id="canvas-3d-container" class="hidden"></div>
+
+                <!-- Contenedor expandido de tarjetas de Marte y Luna para ocupar todo el espacio disponible -->
+                <div class="flex-1 flex flex-col gap-3 my-1">
+                    <!-- BLOQUE 1: Imagen de Marte + Botón que conecta con la simulación de Marte abajo -->
+                    <div class="flex-1 flex flex-col">
+                        <div class="relative border border-orange-500/35 rounded-xl overflow-hidden shadow-lg min-h-[140px] flex-1 bg-[#140804]">
+                            <img id="mars-main-card-img" src="https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg" onerror="this.src='https://placehold.co/600x260/2a120a/f97316?text=Marte+(OSIRIS+True+Color)'" alt="Foto estática de Marte" class="absolute inset-0 w-full h-full object-cover" />
+                            <div class="topo-grid absolute inset-0 pointer-events-none"></div>
+                            <div class="absolute bottom-2.5 left-2.5 right-2.5 z-10 bg-slate-950/85 backdrop-blur-md px-3.5 py-2 rounded-lg border border-orange-500/35 flex justify-between items-center text-xs">
+                                <div>
+                                    <span class="text-orange-400 font-bold uppercase block text-[10px] tracking-wider">Referencia Areográfica (Marte)</span>
+                                    <span id="target-dataset" class="font-mono text-orange-200 text-xs">MOLA + Viking MDIM + HiRISE</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-slate-400 uppercase block text-[10px]">Temp. Media</span>
+                                    <span id="target-temp" class="font-mono text-amber-300 font-bold text-xs">-63 °C</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="text-right">
-                            <span class="text-slate-400 uppercase block">Temp. Media</span>
-                            <span id="target-temp" class="font-mono text-amber-300">-183 °C</span>
+
+                        <button type="button" id="btn-open-mars-map" class="w-full mt-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-600 to-amber-700 hover:from-orange-500 hover:to-amber-600 border border-orange-400/50 text-white text-sm font-bold flex items-center justify-center gap-2.5 transition shadow-lg shadow-orange-600/30">
+                            <span class="text-base">🚀</span>
+                            <span>Abrir Simulador Topográfico de Marte (MOLA / Viking)</span>
+                        </button>
+                    </div>
+
+                    <!-- BLOQUE 2: Imagen de la Luna + Botón que conecta con la simulación de la Luna abajo -->
+                    <div class="flex-1 flex flex-col">
+                        <div class="relative border border-sky-500/35 rounded-xl overflow-hidden shadow-lg min-h-[140px] flex-1 bg-[#020617]">
+                            <img id="moon-main-card-img" src="https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg" alt="Foto estática de la Luna" class="absolute inset-0 w-full h-full object-cover" />
+                            <div class="topo-grid absolute inset-0 pointer-events-none"></div>
+                            <div class="absolute bottom-2.5 left-2.5 right-2.5 z-10 bg-slate-950/85 backdrop-blur-md px-3.5 py-2 rounded-lg border border-sky-500/35 flex justify-between items-center text-xs">
+                                <div>
+                                    <span class="text-sky-400 font-bold uppercase block text-[10px] tracking-wider">Referencia Selenográfica (Luna)</span>
+                                    <span class="font-mono text-sky-200 text-xs">LRO LOLA + LROC + Diviner</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-slate-400 uppercase block text-[10px]">Temp. Media</span>
+                                    <span class="font-mono text-amber-300 font-bold text-xs">-183 °C</span>
+                                </div>
+                            </div>
                         </div>
+
+                        <button type="button" id="btn-open-lunar-map" class="w-full mt-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 border border-sky-400/50 text-white text-sm font-bold flex items-center justify-center gap-2.5 transition shadow-lg shadow-sky-600/30">
+                            <span class="text-base">🚀</span>
+                            <span>Abrir Simulador Topográfico de la Luna (LOLA / LROC)</span>
+                        </button>
                     </div>
                 </div>
             </div>
 
             <!-- Telemetría Física Base -->
-            <div class="grid grid-cols-3 gap-2 pt-3 border-t border-slate-800 text-center">
-                <div class="bg-slate-900/70 p-2.5 rounded-lg">
-                    <p class="text-[10px] text-slate-400 uppercase">Pendiente</p>
-                    <p id="target-slope" class="text-sm font-bold text-white mt-0.5">18.5°</p>
+            <div class="grid grid-cols-3 gap-2.5 pt-3 border-t border-slate-800 text-center">
+                <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800/80">
+                    <p class="text-[10px] text-slate-400 uppercase tracking-wider">Pendiente</p>
+                    <p id="target-slope" class="text-base font-bold text-white mt-0.5">18.5°</p>
                 </div>
-                <div class="bg-slate-900/70 p-2.5 rounded-lg">
-                    <p class="text-[10px] text-slate-400 uppercase">Mineralogía</p>
-                    <p id="target-mineral" class="text-sm font-bold text-white mt-0.5">Anortosita</p>
+                <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800/80">
+                    <p class="text-[10px] text-slate-400 uppercase tracking-wider">Mineralogía</p>
+                    <p id="target-mineral" class="text-base font-bold text-white mt-0.5 truncate px-1">Anortosita</p>
                 </div>
-                <div class="bg-slate-900/70 p-2.5 rounded-lg">
-                    <p class="text-[10px] text-slate-400 uppercase">Gravedad</p>
-                    <p id="target-gravity" class="text-sm font-bold text-white mt-0.5">1.62 m/s²</p>
+                <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800/80">
+                    <p class="text-[10px] text-slate-400 uppercase tracking-wider">Gravedad</p>
+                    <p id="target-gravity" class="text-base font-bold text-white mt-0.5">1.62 m/s²</p>
                 </div>
             </div>
         </section>
 
-        <!-- Columna Central: Motor de Similitud & Radar (4 cols) -->
-        <section class="lg:col-span-4 glass-panel rounded-2xl p-5 flex flex-col justify-between">
-            <div>
-                <div class="flex items-center justify-between mb-2">
+        <!-- Columna Central: Motor Matemático + Deslizador Temporal + Radar (4 cols) -->
+        <section class="lg:col-span-4 glass-panel rounded-2xl p-4 flex flex-col gap-2.5">
+            <div class="flex flex-col gap-2 lg:flex-1">
+                <div class="flex items-center justify-between mb-1">
                     <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Índice de Similitud Física</h3>
-                    <span class="text-xs text-emerald-400 font-mono">Algoritmo: Cosine + Weighted</span>
-                </div>
-
-                <!-- Score Principal -->
-                <div class="flex items-baseline gap-3 mb-4">
-                    <span id="match-score" class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-sky-400">
-                        91.4%
+                    <span id="selected-rank-tag" class="text-xs text-sky-400 font-mono bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
+                        Candidato #1 Global
                     </span>
-                    <span class="text-xs text-slate-400">de compatibilidad para esta misión</span>
                 </div>
 
-                <!-- Gráfico de Radar -->
-                <div class="bg-slate-900/60 rounded-xl p-3 border border-slate-800 mb-4">
-                    <canvas id="radarChart" height="220"></canvas>
+                <!-- Score Principal Calculado en Tiempo Real -->
+                <div class="flex items-baseline justify-between mb-2.5">
+                    <div class="flex items-baseline gap-2">
+                        <span id="match-score" class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-sky-400">
+                            91.5%
+                        </span>
+                        <span id="score-month-label" class="text-[11px] text-sky-300 font-medium">en Julio</span>
+                    </div>
+                    <span id="formula-breakdown" class="text-[10px] font-mono text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 px-2 py-0.5 rounded">
+                        Prox: 90.1% | Cos: 99.4%
+                    </span>
+                </div>
+
+                <!-- Deslizador de Análisis Temporal + Botón Dinámico de Mes Óptimo -->
+                <div class="bg-slate-900/90 border border-sky-500/30 rounded-xl p-3 mb-2.5 shadow-inner">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1">
+                            🗓️ Análisis Temporal (Enero – Diciembre)
+                        </span>
+                        <span id="current-month-badge" class="text-xs font-extrabold text-white bg-sky-600/40 border border-sky-400/40 px-2 py-0.5 rounded">
+                            JULIO
+                        </span>
+                    </div>
+
+                    <input id="month-slider" type="range" min="0" max="11" value="6" class="month-slider my-1.5" aria-label="Seleccionar mes de análisis" />
+
+                    <div id="month-ticks-container" class="grid grid-cols-12 text-[9px] font-mono text-slate-400 text-center select-none mt-1"></div>
+
+                    <div class="mt-2.5 pt-2.5 border-t border-slate-800 flex flex-col gap-1.5">
+                        <div class="flex items-center justify-between text-[11px]">
+                            <span id="seasonal-status-badge" class="font-semibold text-emerald-300 truncate">
+                                🟢 Pico Estacional de Similitud
+                            </span>
+                            <span id="candidate-peak-month-label" class="text-[10px] font-mono text-slate-400">
+                                Pico sitio: Julio
+                            </span>
+                        </div>
+                        <button id="optimal-month-btn" type="button" class="w-full py-1.5 px-3 rounded-lg bg-gradient-to-r from-emerald-600/30 to-sky-600/30 hover:from-emerald-500/40 hover:to-sky-500/40 border border-emerald-400/50 text-emerald-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition shadow-sm">
+                            <span>⚡</span>
+                            <span id="optimal-month-btn-text">Ver mes óptimo: Julio (93.8% de similitud)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panel Visual de Pesos Matemáticos Activos (W_i) -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2 mb-2.5">
+                    <div class="flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-wider mb-1">
+                        <span>Ponderación Matemática Activa (∑ Wᵢ = 100%)</span>
+                        <span id="mode-label-short" class="text-sky-400 font-semibold">Equilibrado</span>
+                    </div>
+                    <div id="weights-bars-container" class="grid grid-cols-5 gap-1.5 text-center"></div>
+                </div>
+
+                <!-- Gráfico de Radar Compacto y Centrado -->
+                <div class="bg-slate-900/60 rounded-xl p-1.5 border border-slate-800 flex flex-col h-[310px] lg:h-auto lg:flex-1 lg:min-h-[310px]">
+                    <div class="relative flex-1 w-full min-h-[290px]">
+                        <canvas id="radarChart" class="absolute inset-0"></canvas>
+                    </div>
                 </div>
             </div>
 
-            <!-- Alerta de Brecha de Realidad (Reality Gap) -->
-            <div class="bg-amber-950/30 border border-amber-500/40 rounded-xl p-3.5">
-                <div class="flex items-center gap-2 mb-1">
-                    <span class="text-amber-400 text-sm">⚠️</span>
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-amber-300">Reality Gap (Brecha de Ingeniería)</h4>
+            <!-- Alerta de Brecha de Realidad (Reality Gap) + Condición Climática del Mes -->
+            <div class="bg-amber-950/30 border border-amber-500/40 rounded-xl p-3">
+                <div class="flex items-center justify-between mb-1">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-amber-400 text-sm">⚠️</span>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-amber-300">Reality Gap & Clima Mensual</h4>
+                    </div>
+                    <span id="seasonal-penalty-tag" class="text-[10px] font-mono text-amber-200 bg-amber-500/20 px-1.5 py-0.5 rounded">
+                        Fidelidad: 100%
+                    </span>
                 </div>
                 <p id="reality-gap-text" class="text-xs text-amber-100/90 leading-relaxed">
                     Excelente análogo topográfico y térmico criogénico, pero la presión atmosférica terrestre (1 atm) exige compensar la convección térmica en pruebas de trajes y rovers.
@@ -176,435 +256,334 @@
             </div>
         </section>
 
-        <!-- Columna Derecha: Análogo Terrestre en Mapa Real (4 cols) -->
-        <section class="lg:col-span-4 glass-panel rounded-2xl p-5 flex flex-col justify-between">
+        <!-- Columna Derecha: Ranking Global Top 3 + Mapa Mundial + Exportación (4 cols) -->
+        <section class="lg:col-span-4 glass-panel rounded-2xl p-4 flex flex-col justify-between">
             <div>
-                <div class="flex items-center justify-between mb-3">
-                    <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                        ANÁLOGO TERRESTRE ÓPTIMO
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-sky-400">
+                        🏆 Ranking Global del Mes (Top 3)
+                    </span>
+                    <span id="ranking-month-indicator" class="text-[10px] font-mono text-emerald-400">
+                        Período: Julio
+                    </span>
+                </div>
+
+                <!-- Contenedor del Podio Top 3 Interactivo -->
+                <div id="top-ranking-list" class="grid grid-cols-3 gap-2 mb-2.5"></div>
+
+                <!-- Detalle del Sitio Seleccionado -->
+                <div class="flex items-center justify-between mb-1 pt-2 border-t border-slate-800/80">
+                    <span id="active-analog-badge" class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        #1 GANADOR DEL MES
                     </span>
                     <span id="earth-coords" class="text-xs font-mono text-slate-400">77.85° S, 166.67° E</span>
                 </div>
 
-                <h2 id="earth-title" class="text-xl font-bold text-white mb-1">Valles Secos de McMurdo</h2>
-                <p id="earth-location" class="text-xs text-sky-400 font-medium mb-3">Antártida • Joya de Investigación Polar</p>
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                    <div>
+                        <h2 id="earth-title" class="text-lg font-bold text-white leading-tight">Valles Secos de McMurdo</h2>
+                        <p id="earth-location" class="text-xs text-sky-400 font-medium">Tierra de Victoria, Antártida</p>
+                    </div>
+                    <button type="button" id="btn-fit-map" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 rounded-lg text-[10px] font-semibold transition shrink-0" title="Ver todos los sitios candidatos simultáneamente en el mapa mundial">
+                        🌍 Vista Global
+                    </button>
+                </div>
+
+                <!-- Leyenda Visual de Pines del Mapa según Ranking -->
+                <div class="flex items-center justify-between bg-slate-900/80 border border-slate-800 px-2.5 py-1 rounded-lg mb-1.5 text-[10px]">
+                    <span class="flex items-center gap-1 text-emerald-300 font-semibold">
+                        <span class="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 inline-block"></span> #1 Ganador
+                    </span>
+                    <span class="flex items-center gap-1 text-amber-300 font-semibold">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> #2 Puesto
+                    </span>
+                    <span class="flex items-center gap-1 text-slate-300 font-semibold">
+                        <span class="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block"></span> #3 y #4
+                    </span>
+                </div>
             </div>
 
             <!-- Mapa Satelital Interactivo -->
-            <div class="flex-1 my-2 rounded-xl overflow-hidden border border-slate-700 relative">
-                <div id="earth-map"></div>
+            <div class="flex-1 my-1 min-h-[285px] rounded-xl overflow-hidden border border-slate-700 relative">
+                <div id="earth-map" class="absolute inset-0"></div>
             </div>
 
-            <!-- Datasets Terrestres Cruzados -->
-            <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-                <div>
+            <!-- Datasets Terrestres Cruzados & Exportación -->
+            <div class="mt-2.5 pt-2.5 border-t border-slate-800 flex items-center justify-between gap-2 text-xs">
+                <div class="truncate">
                     <span class="text-slate-400 block text-[10px] uppercase">Capas NASA / Abiertas</span>
-                    <span id="earth-datasets" class="font-mono text-emerald-300">ASTER GDEM • MODIS LST • SMAP</span>
+                    <span id="earth-datasets" class="font-mono text-emerald-300 text-[11px]">ASTER GDEM • MODIS LST • SMAP</span>
                 </div>
-                <button onclick="exportReport()" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg transition text-xs shadow-lg shadow-sky-600/20">
-                    Exportar Ficha JSON
-                </button>
+                <div class="flex gap-1.5 shrink-0">
+                    <button type="button" id="report-btn" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition text-xs shadow-lg shadow-emerald-600/20">
+                        📄 Informe de Análisis
+                    </button>
+                    <button type="button" id="export-btn" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg transition text-xs shadow-lg shadow-sky-600/20">
+                        📥 JSON (Julio)
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- MÓDULO 2: MAPA LUNAR EQUIRRECTANGULAR & ANÁLISIS TOPOGRÁFICO LOLA/LROC -->
+    <!-- ===================================================================== -->
+    <section id="view-lunar" class="hidden flex-1 p-5 max-w-[1600px] w-full mx-auto flex flex-col gap-4">
+
+        <!-- Encabezado y Barra de Herramientas Cartográficas -->
+        <div class="glass-panel rounded-2xl p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div>
+                    <h2 class="text-lg font-bold text-white">Mapa Lunar · Proyección Equirrectangular (360° × 180°)</h2>
+                    <p class="text-xs text-slate-400">Superficie completa de la Luna en coordenadas selenográficas (E positivo). Selecciona un cráter, mar o misión para analizar su topografía y enviarlo al comparador terrestre.</p>
+                </div>
+                <span id="st" role="status" aria-live="polite" class="text-xs font-mono text-sky-300 bg-sky-950/60 border border-sky-500/30 px-3 py-1.5 rounded-lg">
+                    Calculando relieve…
+                </span>
+            </div>
+
+            <div class="lunar-toolbar flex flex-wrap items-center gap-2">
+                <label class="lunar-chip"><input type="checkbox" id="lr" checked> Foto / relieve</label>
+                <label class="lunar-chip"><input type="checkbox" id="lc" checked> Curvas de nivel</label>
+                <label class="lunar-chip"><input type="checkbox" id="lg" checked> Cuadrícula</label>
+                <label class="lunar-chip"><input type="checkbox" id="lm" checked> Mares</label>
+                <label class="lunar-chip"><input type="checkbox" id="lk" checked> Cráteres</label>
+                <label class="lunar-chip"><input type="checkbox" id="ls" checked> ★ Misiones</label>
+
+                <label class="lunar-chip">
+                    <span>Terreno</span>
+                    <select id="sel" class="bg-slate-900 border border-slate-700 rounded-md px-2 py-1 text-xs text-white focus:outline-none focus:border-sky-500">
+                        <option value="">Elige uno…</option>
+                    </select>
+                </label>
+
+                <label class="lunar-chip" title="Cargar mosaico global LROC en JPG o PNG">
+                    <span>📷 Foto LROC</span>
+                    <input type="file" id="pho" accept="image/*" class="hidden">
+                </label>
+
+                <label class="lunar-chip" title="Cargar mapa de elevación DEM LOLA en escala de grises de 8 bits">
+                    <span>🗻 DEM LOLA</span>
+                    <input type="file" id="dem" accept="image/*" class="hidden">
+                </label>
+
+                <button type="button" id="syn" class="lunar-chip hover:border-sky-400">Volver al modelo sintético</button>
+                <button type="button" id="tour" class="lunar-chip bg-amber-500/15 border-amber-400/40 text-amber-200 hover:bg-amber-500/25">▶ Tour de misiones</button>
+            </div>
+        </div>
+
+        <!-- Lienzo Interactivo del Mapa Equirrectangular -->
+        <div class="glass-panel rounded-2xl p-3">
+            <div id="lunar-map-scroll" class="lunar-map-viewport">
+                <div id="wrap">
+                    <canvas id="c" width="2880" height="1440" role="img" aria-label="Mapa plano de la Luna con mares, cráteres, cuadrícula y curvas de nivel"></canvas>
+                    <canvas id="ov" width="2880" height="1440" aria-hidden="true"></canvas>
+                </div>
+            </div>
+            <div id="tip"></div>
+            <div id="ro" aria-live="polite" class="mt-2 text-xs font-mono text-slate-300 bg-slate-950/70 border border-slate-800 px-3 py-2 rounded-lg">
+                Pasa el cursor sobre un mar, cráter o ★ misión para resaltarlo; haz clic (o elígelo en la lista) para ver su ficha topográfica e imágenes reales.
+            </div>
+        </div>
+
+        <!-- Panel Detallado del Terreno Lunar Seleccionado -->
+        <section id="pn" hidden class="glass-panel rounded-2xl p-5 grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-7 flex flex-col justify-between">
+                <div>
+                    <div class="flex flex-wrap items-start justify-between gap-2 border-b border-slate-800 pb-3 mb-3">
+                        <div>
+                            <h2 id="pe" class="text-xl font-bold text-white"></h2>
+                            <p id="pl" class="text-xs text-sky-400 font-medium"></p>
+                        </div>
+                        <button type="button" id="btn-send-to-matcher" class="sync-bridge-btn">
+                            <span>🚀</span>
+                            <span>Analizar Análogo Terrestre en Twin Matcher</span>
+                        </button>
+                    </div>
+
+                    <dl id="pd" class="lunar-telemetry-grid mb-4"></dl>
+
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-sky-400 mb-2">Perfil Topográfico (Oeste → Este / Sur → Norte)</h3>
+                    <canvas id="pf" width="640" height="220" class="w-full rounded-xl border border-slate-700 bg-slate-950" role="img" aria-label="Perfil de elevación oeste-este y sur-norte del terreno seleccionado"></canvas>
+
+                    <p id="pf2" class="text-sm text-slate-300 leading-relaxed mt-3"></p>
+                    <p id="pw" class="text-xs text-amber-300/90 mt-1"></p>
+                </div>
+
+                <p id="lnk" class="text-xs text-slate-400 mt-4 pt-3 border-t border-slate-800"></p>
+            </div>
+
+            <div class="lg:col-span-5 flex flex-col gap-4">
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-sky-400 mb-2">Malla 3D del Terreno (DEM)</h3>
+                    <div id="dem3d-lunar"></div>
+                </div>
+
+                <div class="static-moon-card">
+                    <img id="moon-view-img" src="https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg" alt="Vista global de referencia lunar" />
+                    <div class="static-moon-footer">
+                        <span class="text-sky-400 font-semibold">REFERENCIA SELENOGRÁFICA</span>
+                        <span id="moon-view-temp" class="font-mono text-amber-300">TEMP. MEDIA -183 °C</span>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-sky-400 mb-2">Imágenes Reales (Wikimedia / NASA)</h3>
+                    <div id="gl"></div>
+                    <p id="gs" class="text-xs text-slate-400 mt-1"></p>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-sky-400 mb-2">Recorte de tu Mosaico LROC</h3>
+                    <canvas id="ph" width="520" height="520" class="w-full max-w-[320px] rounded-xl border border-slate-700 bg-black" role="img" aria-label="Recorte del mosaico LROC sobre el terreno seleccionado"></canvas>
+                    <p id="pn0" class="text-xs text-slate-400 mt-1">Carga un mosaico LROC con el botón «📷 Foto LROC» para visualizar aquí un recorte de alta resolución.</p>
+                </div>
             </div>
         </section>
 
-    </main>
+        <p class="text-[11px] text-slate-400 leading-relaxed px-1">
+            Nota técnica: Nombres, coordenadas y diámetros provienen de catálogos selenográficos IAU/NASA. Mientras no se carguen capas externas, el relieve, curvas de nivel y perfiles utilizan un modelo matemático sintético. Para datos reales, descarga el «CGI Moon Kit» de NASA (svs.gsfc.nasa.gov/4720) y carga el mapa de color LROC y el DEM LOLA de 8 bits.
+        </p>
+    </section>
 
-    <script>
-        // Base de datos estructurada
-        const analogDatabase = {
-            shackleton: {
-                planet: "LUNA • ARTEMIS ZONE",
-                title: "Cráter Shackleton",
-                coords: "89.90° S, 0.00° E",
-                desc: "Bordes con iluminación casi continua y fondo en sombra permanente (PSR) con hielo de agua y pendientes críticas para descenso.",
-                dataset: "LRO LOLA + M3 + Diviner",
-                temp: "-183 °C",
-                slope: "18.5°",
-                mineral: "Anortosita",
-                gravity: "1.62 m/s²",
-                color: 0x38bdf8,
-                targetMetrics: [90, 65, 95, 88, 40],
-                analogs: {
-                    balanced: {
-                        name: "Valles Secos de McMurdo",
-                        location: "Tierra de Victoria, Antártida",
-                        lat: -77.47, lon: 162.52,
-                        score: "91.4%",
-                        earthMetrics: [85, 62, 92, 85, 35],
-                        datasets: "ASTER GDEM • MODIS LST • SMAP",
-                        gap: "Simula de forma excepcional la aridez extrema, permafrost y ángulos solares bajos, pero requiere compensar gravedad (1/6 g) y vacío."
-                    },
-                    mobility: {
-                        name: "Volcán Licancabur (Ladera Alta)",
-                        location: "Altiplano de Atacama, Chile",
-                        lat: -22.83, lon: -67.88,
-                        score: "94.2%",
-                        earthMetrics: [93, 70, 75, 90, 30],
-                        datasets: "SRTM 30m • Sentinel-2 • EMIT",
-                        gap: "Pendientes de regolito suelto y radiación UV extrema ideales para rovers, aunque la temperatura es mucho más templada que el polo lunar."
-                    },
-                    isru: {
-                        name: "Complejo Ígneo de Stillwater",
-                        location: "Montana, Estados Unidos",
-                        lat: 45.38, lon: -109.88,
-                        score: "89.7%",
-                        earthMetrics: [60, 95, 45, 50, 40],
-                        datasets: "ASTER Mineral • USGS Geo",
-                        gap: "Contiene anortositas ricas en plagioclasa casi idénticas a las tierras altas lunares para probar extracción de oxígeno, pero con vegetación y clima templado."
-                    },
-                    subsurface: {
-                        name: "Cráter Haughton",
-                        location: "Isla Devon, Nunavut, Canadá",
-                        lat: 75.38, lon: -89.68,
-                        score: "88.5%",
-                        earthMetrics: [82, 78, 86, 80, 72],
-                        datasets: "ArcticDEM • RADARSAT • MODIS",
-                        gap: "Estructura de impacto con brechas congeladas ideal para perforación subsuperficial y aislamiento de tripulación."
-                    }
-                }
-            },
-            marius: {
-                planet: "LUNA • OCEANUS PROCELLARUM",
-                title: "Colinas Marius (Clarivoyance Pit)",
-                coords: "14.09° N, 56.77° W",
-                desc: "Domos volcánicos con tragaluces naturales que dan acceso a tubos de lava subterráneos protegidos contra radiación cósmica.",
-                dataset: "LROC NAC + GRAIL + Kaguya",
-                temp: "-20 °C (interior)",
-                slope: "12.0°",
-                mineral: "Basalto rico en Ti",
-                gravity: "1.62 m/s²",
-                color: 0x818cf8,
-                targetMetrics: [70, 88, 60, 55, 98],
-                analogs: {
-                    balanced: {
-                        name: "Cueva de los Verdes / Corona",
-                        location: "Lanzarote, Islas Canarias",
-                        lat: 29.16, lon: -13.43,
-                        score: "93.8%",
-                        earthMetrics: [72, 90, 58, 55, 96],
-                        datasets: "LiDAR Terrestre • ASTER • Sentinel-1",
-                        gap: "Tubos de lava basálticos de dimensiones comparables para hábitats inflables, pero en la Luna las cavernas pueden ser 10 veces más anchas por la baja gravedad."
-                    },
-                    mobility: {
-                        name: "Campo Volcánico Krafla",
-                        location: "Norte de Islandia",
-                        lat: 65.71, lon: -16.75,
-                        score: "91.0%",
-                        earthMetrics: [85, 86, 68, 60, 80],
-                        datasets: "ArcticDEM • EMIT • MODIS",
-                        gap: "Flujos de lava recientes y ceniza basáltica ideales para probar tracción de rovers y rappel en claraboyas."
-                    },
-                    isru: {
-                        name: "Meseta Basáltica de Paraná / Atacama Sur",
-                        location: "Antofagasta / Taltal, Chile",
-                        lat: -25.12, lon: -69.85,
-                        score: "90.5%",
-                        earthMetrics: [75, 92, 65, 70, 60],
-                        datasets: "EMIT Hyperspectral • ASTER",
-                        gap: "Basaltos hiperáridos sin alteración acuosa reciente, óptimos para sinterización láser de ladrillos lunares."
-                    },
-                    subsurface: {
-                        name: "Tubos de Lava de Mauna Loa",
-                        location: "Hawái, Estados Unidos",
-                        lat: 19.47, lon: -155.60,
-                        score: "95.1%",
-                        earthMetrics: [68, 91, 55, 50, 98],
-                        datasets: "NASA GEDI • USGS LiDAR",
-                        gap: "Referencia mundial para navegación SLAM sin GPS dentro de túneles volcánicos oscuros y complejos."
-                    }
-                }
-            },
-            jezero: {
-                planet: "MARTE • ISIDIS PLANITIA",
-                title: "Cráter Jezero (Delta Occidental)",
-                coords: "18.38° N, 77.58° E",
-                desc: "Antiguo paleolago marciano con abanico deltaico rico en esmectitas, carbonatos y sílice hidratada.",
-                dataset: "MRO HiRISE + CRISM + MOLA",
-                temp: "-63 °C",
-                slope: "9.4°",
-                mineral: "Esmectitas / Carbonatos",
-                gravity: "3.72 m/s²",
-                color: 0xf43f5e,
-                targetMetrics: [80, 95, 78, 75, 50],
-                analogs: {
-                    balanced: {
-                        name: "Salar de Pajonales / Atacama",
-                        location: "Región de Antofagasta, Chile",
-                        lat: -25.14, lon: -68.82,
-                        score: "94.6%",
-                        earthMetrics: [82, 94, 74, 80, 48],
-                        datasets: "EMIT • ASTER • Landsat 9",
-                        gap: "Presencia de sulfatos, carbonatos y estromatolitos fósiles bajo radiación UV extrema; atmósfera terrestre es 100 veces más densa."
-                    },
-                    mobility: {
-                        name: "Wadi Rum (Valle de la Luna)",
-                        location: "Gobernación de Aqaba, Jordania",
-                        lat: 29.57, lon: 35.42,
-                        score: "89.3%",
-                        earthMetrics: [88, 75, 65, 75, 45],
-                        datasets: "SRTM • Sentinel-2",
-                        gap: "Dunas de arena fina combinadas con afloramientos de arenisca para probar atrapamiento de ruedas."
-                    },
-                    isru: {
-                        name: "Pilbara Craton (North Pole Dome)",
-                        location: "Australia Occidental",
-                        lat: -21.18, lon: 119.45,
-                        score: "92.8%",
-                        earthMetrics: [76, 96, 62, 70, 50],
-                        datasets: "ASTER Geoscience • Hyperspectral",
-                        gap: "Rocas hidrotermales de 3.500 millones de años idénticas a las del Noeico marciano para calibrar espectrómetros Raman."
-                    },
-                    subsurface: {
-                        name: "Río Tinto (Subsuelo Pirítico)",
-                        location: "Huelva, España",
-                        lat: 37.70, lon: -6.55,
-                        score: "86.4%",
-                        earthMetrics: [65, 89, 55, 50, 88],
-                        datasets: "ESA Sentinel • ESA Borehole Data",
-                        gap: "Química ácida rica en hierro y microorganismos quimiolitótrofos subsuperficiales análogos a posibles biosferas marcianas."
-                    }
-                }
-            },
-            arcadia: {
-                planet: "MARTE • LATITUDES MEDIAS",
-                title: "Arcadia Planitia",
-                coords: "46.70° N, 192.00° E",
-                desc: "Llanura volcánica suave con glaciares enterrados a poca profundidad (<1-2 metros), candidata top para bases humanas SpaceX/NASA.",
-                dataset: "MRO SHARAD + CTX + THEMIS",
-                temp: "-75 °C",
-                slope: "2.1°",
-                mineral: "Basalto + Hielo H2O",
-                gravity: "3.72 m/s²",
-                color: 0x10b981,
-                targetMetrics: [96, 80, 88, 70, 85],
-                analogs: {
-                    balanced: {
-                        name: "Meseta de Axel Heiberg",
-                        location: "Ártico Canadiense",
-                        lat: 79.41, lon: -90.75,
-                        score: "92.1%",
-                        earthMetrics: [92, 78, 86, 72, 84],
-                        datasets: "SMAP • ArcticDEM • MODIS",
-                        gap: "Permafrost poligonal y hielo masivo enterrado bajo regolito seco ideal para probar taladros de extracción de agua."
-                    },
-                    mobility: {
-                        name: "Playa Racetrack (Valle de la Muerte)",
-                        location: "California, Estados Unidos",
-                        lat: 36.67, lon: -117.56,
-                        score: "90.8%",
-                        earthMetrics: [97, 74, 60, 75, 40],
-                        datasets: "USGS LiDAR • Landsat 8",
-                        gap: "Planicie ultra-plana con polígonos de desecación para probar aterrizajes de precisión y convoyes autónomos."
-                    },
-                    isru: {
-                        name: "Campo Geotérmico El Tatio / Puna",
-                        location: "Antofagasta, Chile",
-                        lat: -22.33, lon: -68.01,
-                        score: "89.9%",
-                        earthMetrics: [84, 86, 80, 78, 75],
-                        datasets: "ASTER • EMIT • MODIS LST",
-                        gap: "Combinación única de hielo nocturno, baja presión atmosférica y sílice amorfa para sistemas de procesamiento de agua."
-                    },
-                    subsurface: {
-                        name: "Túneles de Permafrost de Fox",
-                        location: "Fairbanks, Alaska",
-                        lat: 64.95, lon: -147.62,
-                        score: "91.5%",
-                        earthMetrics: [80, 75, 85, 65, 92],
-                        datasets: "NASA ABoVE • SMAP",
-                        gap: "Permite ensayar excavación y estabilización térmica de túneles en hielo-suelo sin derretir la estructura."
-                    }
-                }
-            }
-        };
+    <!-- ===================================================================== -->
+    <!-- MÓDULO 3: MAPA MARCIANO EQUIRRECTANGULAR & ANÁLISIS MOLA / VIKING     -->
+    <!-- ===================================================================== -->
+    <section id="view-mars" class="hidden flex-1 p-5 max-w-[1600px] w-full mx-auto flex flex-col gap-4">
 
-        // --- CONFIGURACIÓN THREE.JS (Visor 3D Topográfico) ---
-        const container3D = document.getElementById('canvas-3d-container');
-        const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x020617, 0.15);
+        <!-- Encabezado y Barra de Herramientas Cartográficas de Marte -->
+        <div class="glass-panel rounded-2xl p-4 border-orange-500/25">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div>
+                    <h2 class="text-lg font-bold text-white">Mapa Marciano · Proyección Equirrectangular (360° × 180°)</h2>
+                    <p class="text-xs text-slate-400">Superficie completa de Marte en coordenadas areográficas (E positivo). Selecciona una llanura, cuenca, volcán, cráter o misión para analizar su topografía y enviarlo al comparador terrestre.</p>
+                </div>
+                <span id="mars-st" role="status" aria-live="polite" class="text-xs font-mono text-orange-300 bg-orange-950/60 border border-orange-500/35 px-3 py-1.5 rounded-lg">
+                    Calculando relieve marciano…
+                </span>
+            </div>
 
-        // Tamaños iniciales garantizados (evita que tome 0 al renderizar por primera vez)
-        const width3D = container3D.clientWidth || 300;
-        const height3D = container3D.clientHeight || 210;
+            <div class="lunar-toolbar flex flex-wrap items-center gap-2">
+                <label class="lunar-chip mars-chip"><input type="checkbox" id="mars-lr" checked> Foto / relieve</label>
+                <label class="lunar-chip mars-chip"><input type="checkbox" id="mars-lc" checked> Curvas de nivel</label>
+                <label class="lunar-chip mars-chip"><input type="checkbox" id="mars-lg" checked> Cuadrícula</label>
+                <label class="lunar-chip mars-chip"><input type="checkbox" id="mars-lm" checked> Llanuras y cuencas</label>
+                <label class="lunar-chip mars-chip"><input type="checkbox" id="mars-lk" checked> Cráteres y volcanes</label>
+                <label class="lunar-chip mars-chip"><input type="checkbox" id="mars-ls" checked> ★ Misiones</label>
 
-        const camera = new THREE.PerspectiveCamera(45, width3D / height3D, 0.1, 1000);
-        camera.position.set(0, 4, 6);
-        camera.lookAt(0, 0, 0);
+                <label class="lunar-chip mars-chip">
+                    <span>Terreno</span>
+                    <select id="mars-sel" class="bg-slate-900 border border-slate-700 rounded-md px-2 py-1 text-xs text-white focus:outline-none focus:border-orange-500">
+                        <option value="">Elige uno…</option>
+                    </select>
+                </label>
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(width3D, height3D);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        container3D.appendChild(renderer.domElement);
+                <label class="lunar-chip mars-chip" title="Cargar mosaico global Viking MDIM 2.1 en JPG o PNG">
+                    <span>📷 Foto Viking/MDIM</span>
+                    <input type="file" id="mars-pho" accept="image/*" class="hidden">
+                </label>
 
-        // Luces para dar relieve al terreno
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-        scene.add(ambientLight);
+                <label class="lunar-chip mars-chip" title="Cargar modelo de elevación DEM MOLA en escala de grises de 8 bits">
+                    <span>🗻 DEM MOLA</span>
+                    <input type="file" id="mars-dem" accept="image/*" class="hidden">
+                </label>
 
-        const directionalLight = new THREE.DirectionalLight(0x38bdf8, 1.5);
-        directionalLight.position.set(5, 10, 7);
-        scene.add(directionalLight);
+                <button type="button" id="mars-syn" class="lunar-chip mars-chip hover:border-orange-400">Volver al modelo sintético</button>
+                <button type="button" id="mars-tour" class="lunar-chip bg-orange-500/15 border-orange-400/40 text-orange-200 hover:bg-orange-500/25">▶ Tour de misiones</button>
+            </div>
+        </div>
 
-        const pointLight = new THREE.PointLight(0x818cf8, 2, 50);
-        pointLight.position.set(-5, 5, -5);
-        scene.add(pointLight);
+        <!-- Lienzo Interactivo del Mapa Equirrectangular Marciano -->
+        <div class="glass-panel rounded-2xl p-3 border-orange-500/25">
+            <div id="mars-map-scroll" class="lunar-map-viewport mars-map-viewport">
+                <div id="mars-wrap">
+                    <canvas id="mars-c" width="2880" height="1440" role="img" aria-label="Mapa plano de Marte con llanuras, cuencas, volcanes, cráteres, cuadrícula y curvas de nivel"></canvas>
+                    <canvas id="mars-ov" width="2880" height="1440" aria-hidden="true"></canvas>
+                </div>
+            </div>
+            <div id="mars-tip"></div>
+            <div id="mars-ro" aria-live="polite" class="mt-2 text-xs font-mono text-slate-300 bg-slate-950/70 border border-slate-800 px-3 py-2 rounded-lg">
+                Pasa el cursor sobre una llanura, cuenca, volcán, cráter o ★ misión para resaltarlo; haz clic (o elígelo en la lista) para ver su ficha, datos del terreno e imágenes reales.
+            </div>
+        </div>
 
-        // Geometría del Terreno (Malla Topográfica)
-        let terrainGeometry = new THREE.PlaneGeometry(6, 6, 32, 32);
-        let terrainMaterial = new THREE.MeshStandardMaterial({
-            color: 0x38bdf8,
-            wireframe: true,
-            roughness: 0.4,
-            metalness: 0.2
-        });
-        let terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
-        terrainMesh.rotation.x = -Math.PI / 2.5;
-        scene.add(terrainMesh);
+        <!-- Panel Detallado del Terreno Marciano Seleccionado -->
+        <section id="mars-pn" hidden class="glass-panel rounded-2xl p-5 grid grid-cols-1 lg:grid-cols-12 gap-6 border-orange-500/25">
+            <div class="lg:col-span-7 flex flex-col justify-between">
+                <div>
+                    <div class="flex flex-wrap items-start justify-between gap-2 border-b border-slate-800 pb-3 mb-3">
+                        <div>
+                            <h2 id="mars-pe" class="text-xl font-bold text-white"></h2>
+                            <p id="mars-pl" class="text-xs text-orange-400 font-medium"></p>
+                        </div>
+                        <button type="button" id="btn-send-mars-to-matcher" class="sync-bridge-btn mars-sync-btn">
+                            <span>🚀</span>
+                            <span>Analizar Análogo Terrestre en Twin Matcher</span>
+                        </button>
+                    </div>
 
-        // Función para deformar la malla y simular relieve topográfico variable según el objetivo
-        function generateTerrainNoise(targetKey) {
-            const positions = terrainGeometry.attributes.position;
-            const factor = targetKey === 'shackleton' ? 0.8 : targetKey === 'marius' ? 0.5 : targetKey === 'jezero' ? 0.6 : 0.3;
-            
-            for (let i = 0; i < positions.count; i++) {
-                const x = positions.getX(i);
-                const y = positions.getY(i);
-                const z = Math.sin(x * 1.2 + factor * 2) * Math.cos(y * 1.2) * 0.7 
-                        - Math.sin(Math.sqrt(x*x + y*y) * 0.8) * (factor * 0.6);
-                positions.setZ(i, z);
-            }
-            terrainGeometry.computeVertexNormals();
-            terrainGeometry.attributes.position.needsUpdate = true;
-        }
+                    <dl id="mars-pd" class="lunar-telemetry-grid mb-4"></dl>
 
-        // --- MAPA LEAFLET ---
-        const map = L.map('earth-map').setView([-77.47, 162.52], 9);
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri &mdash; NASA/USGS Data Layers'
-        }).addTo(map);
-        let marker = L.marker([-77.47, 162.52]).addTo(map);
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-orange-400 mb-2">Perfil Topográfico (Oeste → Este / Sur → Norte)</h3>
+                    <canvas id="mars-pf" width="640" height="220" class="w-full rounded-xl border border-slate-700 bg-slate-950" role="img" aria-label="Perfil de elevación oeste-este y sur-norte del terreno marciano seleccionado"></canvas>
 
-        // --- GRÁFICO RADAR ---
-        const ctx = document.getElementById('radarChart').getContext('2d');
-        const radarChart = new Chart(ctx, {
-            type: 'radar',
-            data: {
-                labels: ['Topografía/Pendiente', 'Mineralogía', 'Estrés Térmico', 'Iluminación', 'Acceso Subsuelo'],
-                datasets: [
-                    {
-                        label: 'Objetivo Espacial',
-                        data: [90, 65, 95, 88, 40],
-                        borderColor: '#818cf8',
-                        backgroundColor: 'rgba(129, 140, 248, 0.2)',
-                        borderWidth: 2
-                    },
-                    {
-                        label: 'Análogo Terrestre',
-                        data: [85, 62, 92, 85, 35],
-                        borderColor: '#34d399',
-                        backgroundColor: 'rgba(52, 211, 153, 0.2)',
-                        borderWidth: 2
-                    }
-                ]
-            },
-            options: {
-                scales: {
-                    r: {
-                        min: 0,
-                        max: 100,
-                        ticks: { display: false },
-                        grid: { color: 'rgba(148, 163, 184, 0.15)' },
-                        angleLines: { color: 'rgba(148, 163, 184, 0.15)' },
-                        pointLabels: { color: '#cbd5e1', font: { size: 11 } }
-                    }
-                },
-                plugins: {
-                    legend: { labels: { color: '#e2e8f0', font: { size: 11 } } }
-                }
-            }
-        });
+                    <p id="mars-pf2" class="text-sm text-slate-300 leading-relaxed mt-3"></p>
+                    <p id="mars-pw" class="text-xs text-amber-300/90 mt-1"></p>
+                </div>
 
-        // Actualizar Dashboard completo
-        function updateDashboard() {
-            const targetKey = document.getElementById('target-select').value;
-            const modeKey = document.getElementById('mission-mode').value;
-            
-            const target = analogDatabase[targetKey];
-            const analog = target.analogs[modeKey];
+                <p id="mars-lnk" class="text-xs text-slate-400 mt-4 pt-3 border-t border-slate-800"></p>
+            </div>
 
-            // Panel Izquierdo
-            document.getElementById('planet-badge').textContent = target.planet;
-            document.getElementById('target-coords').textContent = target.coords;
-            document.getElementById('target-title').textContent = target.title;
-            document.getElementById('target-desc').textContent = target.desc;
-            document.getElementById('target-dataset').textContent = target.dataset;
-            document.getElementById('target-temp').textContent = target.temp;
-            document.getElementById('target-slope').textContent = target.slope;
-            document.getElementById('target-mineral').textContent = target.mineral;
-            document.getElementById('target-gravity').textContent = target.gravity;
+            <div class="lg:col-span-5 flex flex-col gap-4">
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-orange-400 mb-2">Malla 3D del Terreno (DEM)</h3>
+                    <div id="dem3d-mars"></div>
+                </div>
 
-            // Actualizar color y relieve del terreno 3D
-            terrainMaterial.color.setHex(target.color);
-            directionalLight.color.setHex(target.color);
-            generateTerrainNoise(targetKey);
+                <div class="static-moon-card">
+                    <img id="mars-view-img" src="https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg" onerror="this.src='https://placehold.co/600x220/2a120a/f97316?text=Marte+(OSIRIS+True+Color)'" alt="Foto estática de Marte" />
+                    <div class="static-moon-footer">
+                        <span class="text-orange-400 font-semibold">REFERENCIA AREOGRÁFICA</span>
+                        <span id="mars-view-temp" class="font-mono text-amber-300">TEMP. MEDIA -63 °C</span>
+                    </div>
+                </div>
 
-            // Panel Central
-            document.getElementById('match-score').textContent = analog.score;
-            document.getElementById('reality-gap-text').textContent = analog.gap;
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-orange-400 mb-2">Imágenes Reales (Wikimedia / NASA / ESA)</h3>
+                    <div id="mars-gl"></div>
+                    <p id="mars-gs" class="text-xs text-slate-400 mt-1"></p>
+                </div>
 
-            radarChart.data.datasets[0].data = target.targetMetrics;
-            radarChart.data.datasets[1].data = analog.earthMetrics;
-            radarChart.update();
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-orange-400 mb-2">Recorte de tu Mosaico Viking / MDIM</h3>
+                    <canvas id="mars-ph" width="520" height="520" class="w-full max-w-[320px] rounded-xl border border-slate-700 bg-black" role="img" aria-label="Recorte del mosaico global sobre el terreno seleccionado"></canvas>
+                    <p id="mars-pn0" class="text-xs text-slate-400 mt-1">Carga un mosaico global con el botón «📷 Foto Viking/MDIM» para ver aquí un recorte real de este terreno.</p>
+                </div>
+            </div>
+        </section>
 
-            // Panel Derecho (Mapa)
-            document.getElementById('earth-title').textContent = analog.name;
-            document.getElementById('earth-location').textContent = analog.location;
-            document.getElementById('earth-coords').textContent = `${analog.lat.toFixed(2)}°, ${analog.lon.toFixed(2)}°`;
-            document.getElementById('earth-datasets').textContent = analog.datasets;
+        <p class="text-[11px] text-slate-400 leading-relaxed px-1">
+            Nota técnica: Nombres, coordenadas, alturas y diámetros provienen de catálogos UAI/USGS. Mientras no cargues datos externos, el relieve, curvas de nivel y perfiles provienen de un modelo sintético que reproduce la dicotomía cortical marciana, Tharsis, Valles Marineris, grandes volcanes y cuencas de impacto. Para datos reales, descarga del USGS Astrogeology / NASA Mars Global Surveyor el mosaico global Viking MDIM 2.1 y el DEM MOLA MEGDR (8 bits, −8,2 a +21,2 km respecto al areoide).
+        </p>
+    </section>
 
-            map.flyTo([analog.lat, analog.lon], 10, { duration: 1.2 });
-            marker.setLatLng([analog.lat, analog.lon]).bindPopup(`<b>${analog.name}</b><br>Similitud: ${analog.score}`).openPopup();
-        }
+    <!-- ===================================================================== -->
+    <!-- MODAL: INFORME DE ANÁLISIS PLANETARIO (EXPORTABLE / IMPRIMIBLE)       -->
+    <!-- ===================================================================== -->
+    <div id="report-overlay" class="hidden fixed inset-0 z-[2000] bg-black/75 backdrop-blur-sm overflow-y-auto p-4">
+        <div class="max-w-3xl mx-auto my-4">
+            <div class="no-print flex flex-wrap justify-end gap-2 mb-2">
+                <button type="button" id="btn-download-txt" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 rounded-lg text-xs font-semibold">⬇ Descargar .txt</button>
+                <button type="button" id="btn-print-report" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-semibold">🖨 Descargar PDF</button>
+                <button type="button" id="btn-close-report" class="px-3 py-1.5 bg-rose-700 hover:bg-rose-600 text-white rounded-lg text-xs font-semibold">✕ Cerrar</button>
+            </div>
+            <article id="report-content" class="report-sheet rounded-2xl p-6 sm:p-8"></article>
+        </div>
+    </div>
 
-        // Bucle de animación suave para rotar el visor 3D
-        function animate() {
-            requestAnimationFrame(animate);
-            terrainMesh.rotation.z += 0.002;
-            renderer.render(scene, camera);
-        }
-
-        // Exportar ficha JSON
-        function exportReport() {
-            const targetKey = document.getElementById('target-select').value;
-            const modeKey = document.getElementById('mission-mode').value;
-            const data = {
-                timestamp: new Date().toISOString(),
-                target: analogDatabase[targetKey].title,
-                missionProfile: modeKey,
-                recommendedAnalog: analogDatabase[targetKey].analogs[modeKey]
-            };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `analog-report-${targetKey}-${modeKey}.json`;
-            a.click();
-        }
-
-        document.getElementById('target-select').addEventListener('change', updateDashboard);
-        document.getElementById('mission-mode').addEventListener('change', updateDashboard);
-
-        // Inicializar al cargar y arrancar animación
-        generateTerrainNoise('shackleton');
-        animate();
-
-        // Manejar redimensionamiento de ventana
-        window.addEventListener('resize', () => {
-            const width = container3D.clientWidth;
-            const height = container3D.clientHeight;
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-        });
-    </script>
+    <!-- Scripts Modulares: Primero Base de Datos, luego Lógica Unificada -->
+    <script src="datos.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

@@ -1,0 +1,801 @@
+/* ==========================================================================
+   PLANETARY TWIN MATCHER & CARTOGRAFÍA LUNAR / MARCIANA — ESTILOS UNIFICADOS
+   NASA Space Apps 2026
+   ========================================================================== */
+
+:root {
+    --bg-space: #0b0f19;
+    --bg-panel: rgba(17, 24, 39, 0.85);
+    --bg-card: #0f1626;
+    --bg-deep: #020617;
+    --ink-primary: #e2e8f0;
+    --ink-muted: #94a3b8;
+    --accent-sky: #38bdf8;
+    --accent-emerald: #10b981;
+    --accent-indigo: #818cf8;
+    --accent-amber: #f59e0b;
+    --accent-mars: #f97316;
+    --border-subtle: rgba(56, 189, 248, 0.2);
+    --border-slate: #1e293b;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html {
+    scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+
+body {
+    background-color: var(--bg-space);
+    color: var(--ink-primary);
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+    margin: 0;
+}
+
+/* Paneles translúcidos estilo telemetría espacial */
+.glass-panel {
+    background: var(--bg-panel);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-subtle);
+}
+
+/* Navegación superior entre módulos (Gemelo Planetario / Mapa Lunar / Mapa Marciano) */
+.nav-tab {
+    color: var(--ink-muted);
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.nav-tab:hover {
+    color: #ffffff;
+    background: rgba(56, 189, 248, 0.08);
+}
+
+.nav-tab.active {
+    color: #ffffff;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.28), rgba(99, 102, 241, 0.28));
+    border-color: rgba(56, 189, 248, 0.45);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.18);
+}
+
+.nav-tab.mars-tab.active {
+    background: linear-gradient(135deg, rgba(234, 88, 12, 0.32), rgba(185, 28, 28, 0.28));
+    border-color: rgba(251, 146, 60, 0.5);
+    box-shadow: 0 0 12px rgba(249, 115, 22, 0.22);
+}
+
+/* ==========================================================================
+   MÓDULO 1: PLANETARY TWIN MATCHER (3D, RADAR, SLIDER TEMPORAL Y MAPA LEAFLET)
+   ========================================================================== */
+
+#earth-map {
+    height: 100%;
+    min-height: 285px;
+    border-radius: 0.75rem;
+    z-index: 1;
+}
+
+#canvas-3d-container {
+    width: 100%;
+    height: 210px;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg-deep);
+}
+
+.topo-grid {
+    background-image:
+        linear-gradient(to right, rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.rank-card {
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+.rank-card:hover {
+    transform: translateY(-2px);
+}
+
+.rank-card.active {
+    border-color: var(--accent-sky);
+    background: rgba(14, 165, 233, 0.15);
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+}
+
+.weight-pill {
+    transition: all 0.25s ease;
+}
+
+input[type="range"].month-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    background: linear-gradient(90deg, #0284c7 0%, #10b981 50%, #6366f1 100%);
+    border-radius: 999px;
+    outline: none;
+    cursor: pointer;
+}
+
+input[type="range"].month-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 3px solid var(--accent-sky);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+input[type="range"].month-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+
+input[type="range"].month-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 3px solid var(--accent-sky);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.month-tick {
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.month-tick:hover {
+    color: var(--accent-sky);
+}
+
+.month-tick.active-month {
+    color: var(--accent-sky);
+    font-weight: 800;
+    text-decoration: underline;
+}
+
+.custom-map-pin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 800;
+    border-radius: 9999px;
+    color: #ffffff;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+}
+
+.pin-rank-1 {
+    background: linear-gradient(135deg, #10b981, #0284c7);
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.95), 0 0 28px rgba(56, 189, 248, 0.7);
+    font-size: 11px;
+    padding: 3px 8px;
+    z-index: 1000 !important;
+    animation: pulseWinner 2s infinite;
+}
+
+.pin-rank-2 {
+    background: rgba(245, 158, 11, 0.92);
+    border: 2px solid #fef3c7;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+    font-size: 10px;
+    padding: 2px 7px;
+    z-index: 800 !important;
+}
+
+.pin-rank-3 {
+    background: rgba(100, 116, 139, 0.92);
+    border: 1.5px solid #e2e8f0;
+    box-shadow: 0 0 8px rgba(148, 163, 184, 0.4);
+    font-size: 10px;
+    padding: 2px 6px;
+    z-index: 700 !important;
+}
+
+.pin-rank-other {
+    background: rgba(51, 65, 85, 0.85);
+    border: 1px solid #94a3b8;
+    color: #cbd5e1;
+    font-size: 9px;
+    padding: 1px 5px;
+    z-index: 600 !important;
+}
+
+@keyframes pulseWinner {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+}
+
+/* ==========================================================================
+   MÓDULOS 2 Y 3: MAPAS EQUIRRECTANGULARES (LUNA & MARTE)
+   ========================================================================== */
+
+.lunar-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 12px;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.85);
+    color: var(--ink-primary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.lunar-chip:hover {
+    border-color: rgba(56, 189, 248, 0.5);
+    background: rgba(30, 41, 59, 0.9);
+}
+
+.lunar-chip input[type="checkbox"] {
+    accent-color: var(--accent-sky);
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+.mars-chip:hover {
+    border-color: rgba(251, 146, 60, 0.55);
+}
+
+.mars-chip input[type="checkbox"] {
+    accent-color: var(--accent-mars);
+}
+
+/* Contenedor desplazable de los lienzos equirrectangulares 2880x1440 */
+.lunar-map-viewport {
+    overflow-x: auto;
+    border: 1px solid #334155;
+    border-radius: 0.75rem;
+    background: #0e1013;
+    scrollbar-width: thin;
+    scrollbar-color: #38bdf8 #0f172a;
+}
+
+.mars-map-viewport {
+    scrollbar-color: #f97316 #140804;
+}
+
+.lunar-map-viewport::-webkit-scrollbar {
+    height: 8px;
+}
+
+.lunar-map-viewport::-webkit-scrollbar-track {
+    background: #0f172a;
+    border-radius: 999px;
+}
+
+.lunar-map-viewport::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 999px;
+}
+
+.lunar-map-viewport::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-sky);
+}
+
+.mars-map-viewport::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-mars);
+}
+
+#wrap,
+#mars-wrap {
+    position: relative;
+    min-width: 1500px;
+}
+
+#wrap canvas,
+#mars-wrap canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+#wrap #ov,
+#mars-wrap #mars-ov {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* Tooltips flotantes sobre accidentes planetarios */
+#tip,
+#mars-tip {
+    position: fixed;
+    z-index: 60;
+    pointer-events: none;
+    padding: 5px 10px;
+    border-radius: 8px;
+    background: rgba(2, 6, 23, 0.94);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    color: #f8fafc;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+    display: none;
+    white-space: nowrap;
+}
+
+#mars-tip {
+    background: rgba(20, 8, 4, 0.95);
+    border-color: rgba(251, 146, 60, 0.5);
+}
+
+/* Tabla descriptiva de parámetros planetarios (<dl>) */
+.lunar-telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 8px;
+    margin: 0;
+}
+
+.lunar-telemetry-grid .telemetry-item {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid var(--border-slate);
+    border-radius: 10px;
+    padding: 8px 12px;
+}
+
+.lunar-telemetry-grid dt {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-muted);
+    margin-bottom: 2px;
+}
+
+.lunar-telemetry-grid dd {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Tarjeta de referencia visual planetaria */
+.static-moon-card {
+    width: 100%;
+    height: 200px;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg-deep);
+    border: 1px solid #334155;
+}
+
+.static-moon-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.static-moon-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 6px 12px;
+    background: rgba(2, 6, 23, 0.88);
+    backdrop-filter: blur(6px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--ink-muted);
+    border-top: 1px solid rgba(56, 189, 248, 0.15);
+}
+
+/* Galerías de imágenes reales de Wikimedia / NASA */
+#gl,
+#mars-gl {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+}
+
+#gl figure,
+#mars-gl figure {
+    margin: 0;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #0f172a;
+    transition: border-color 0.2s ease;
+}
+
+#gl figure:hover {
+    border-color: var(--accent-sky);
+}
+
+#mars-gl figure:hover {
+    border-color: var(--accent-mars);
+}
+
+#gl img,
+#mars-gl img {
+    display: block;
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+}
+
+#gl figcaption,
+#mars-gl figcaption {
+    font-size: 11px;
+    padding: 5px 7px;
+    color: var(--ink-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#gl a,
+#mars-gl a {
+    color: inherit;
+    text-decoration: none;
+}
+
+/* Botones Puente de Sincronización hacia el Twin Matcher */
+.sync-bridge-btn {
+    background: linear-gradient(135deg, #0284c7, #4f46e5);
+    color: #ffffff;
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.3);
+    transition: all 0.25s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.sync-bridge-btn:hover {
+    background: linear-gradient(135deg, #0369a1, #4338ca);
+    box-shadow: 0 6px 18px rgba(56, 189, 248, 0.5);
+    transform: translateY(-1px);
+}
+
+.mars-sync-btn {
+    background: linear-gradient(135deg, #ea580c, #c2410c);
+    border-color: rgba(251, 146, 60, 0.5);
+    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
+}
+
+.mars-sync-btn:hover {
+    background: linear-gradient(135deg, #c2410c, #9a3412);
+    box-shadow: 0 6px 18px rgba(234, 88, 12, 0.55);
+}
+
+/* ==========================================================================
+   MODAL DE INFORME DE ANÁLISIS PLANETARIO Y ESTILOS DE IMPRESIÓN
+   ========================================================================== */
+
+.report-sheet {
+    background: var(--bg-card);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: var(--ink-primary);
+}
+
+.report-sheet h2 {
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-sky);
+    font-weight: 800;
+    border-bottom: 1px solid var(--border-slate);
+    padding-bottom: 6px;
+    margin: 26px 0 10px;
+}
+
+.report-sheet p,
+.report-sheet li {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #cbd5e1;
+}
+
+.report-sheet table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.report-sheet th {
+    text-align: right;
+    color: var(--ink-muted);
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    padding: 5px 8px;
+    border-bottom: 1px solid #334155;
+}
+
+.report-sheet th:first-child,
+.report-sheet td:first-child {
+    text-align: left;
+}
+
+.report-sheet td {
+    text-align: right;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border-slate);
+    font-family: ui-monospace, Menlo, monospace;
+}
+
+.report-sheet td:first-child {
+    font-family: inherit;
+    color: var(--ink-primary);
+}
+
+.report-sheet tfoot td {
+    font-weight: 800;
+    color: #ffffff;
+    border-top: 1px solid #475569;
+}
+
+.rep-head {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.rep-head div {
+    background: #0b1220;
+    border: 1px solid var(--border-slate);
+    border-radius: 10px;
+    padding: 8px 10px;
+}
+
+.rep-head small {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.rep-head b {
+    font-size: 14px;
+    color: #ffffff;
+}
+
+.rep-box {
+    background: #0b1220;
+    border: 1px solid var(--border-slate);
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+.rep-bar {
+    height: 8px;
+    border-radius: 99px;
+    background: var(--border-slate);
+    overflow: hidden;
+}
+
+.rep-bar > span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #38bdf8);
+}
+
+@media print {
+    body > *:not(#report-overlay) {
+        display: none !important;
+    }
+    #report-overlay {
+        position: static !important;
+        background: #ffffff !important;
+        padding: 0 !important;
+        display: block !important;
+    }
+    .no-print {
+        display: none !important;
+    }
+    .report-sheet {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        border: none !important;
+    }
+    .report-sheet p,
+    .report-sheet li,
+    .report-sheet td,
+    .report-sheet td:first-child,
+    .report-sheet b {
+        color: #0f172a !important;
+    }
+    .report-sheet h2 {
+        color: #0369a1 !important;
+    }
+    .rep-box,
+    .rep-head div {
+        background: #f8fafc !important;
+        border-color: #cbd5e1 !important;
+    }
+}
+
+/* ===== Malla 3D DEM de los simuladores (Luna y Marte) ===== */
+.dem3d-stage {
+    position: relative;
+    border: 1px solid #334155;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    background: #020617;
+}
+.dem3d-view {
+    width: 100%;
+    height: 230px;
+    touch-action: none;
+    cursor: grab;
+}
+.dem3d-view:active { cursor: grabbing; }
+.dem3d-view canvas { display: block; }
+.dem3d-info {
+    position: absolute;
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(51, 65, 85, 0.8);
+    background: rgba(2, 6, 23, 0.8);
+    backdrop-filter: blur(6px);
+    font-size: 10px;
+    pointer-events: none;
+}
+.dem3d-k { display: block; color: #94a3b8; text-transform: uppercase; }
+.dem3d-v { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #7dd3fc; }
+.dem3d-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.9rem;
+    margin-top: 0.5rem;
+    font-size: 11px;
+    color: #cbd5e1;
+}
+.dem3d-controls input[type="range"] { width: 110px; vertical-align: middle; }
+.dem3d-controls button {
+    border: 1px solid #334155;
+    border-radius: 0.5rem;
+    padding: 0.2rem 0.6rem;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+.dem3d-controls button:hover { border-color: #38bdf8; }
+.dem3d-hint { margin-top: 0.35rem; font-size: 10px; color: #94a3b8; }
+
+/* ===== Comparación 3D lado a lado dentro del informe ===== */
+.rep-3d-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    margin: 10px 0;
+}
+.rep-3d-card {
+    border: 1px solid var(--c, #38bdf8);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    background: #020617;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+.rep-3d-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #fff;
+    border-bottom: 1px solid var(--c, #38bdf8);
+    background: rgba(255, 255, 255, 0.04);
+}
+.rep-3d-title i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--c, #38bdf8);
+    flex: none;
+}
+.rep-3d-stage {
+    position: relative;
+    height: 260px;
+    cursor: grab;
+    touch-action: none;
+    background: radial-gradient(circle at 50% 40%, #0f172a 0%, #020617 75%);
+}
+.rep-3d-stage canvas {
+    display: block;
+}
+.rep-3d-ctrl {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    font-size: 11px;
+    color: #94a3b8;
+    margin-bottom: 10px;
+}
+.rep-3d-ctrl button {
+    padding: 3px 10px;
+    border: 1px solid #334155;
+    border-radius: 0.5rem;
+    background: #0f172a;
+    color: #7dd3fc;
+}
+@media print {
+    .rep-3d-card, .rep-3d-card * {
+        break-inside: avoid;
+    }
+    .rep-3d-title {
+        color: #fff !important;
+    }
+}
+
+/* ===== Fotos de los terrenos (debajo de las mallas 3D del informe) ===== */
+.rep-photo-stage {
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #020617;
+    color: #64748b;
+    font-size: 11px;
+    text-align: center;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+.rep-photo-stage img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.rep-photo-cap {
+    padding: 5px 10px;
+    font-size: 10px;
+    line-height: 1.35;
+    color: #94a3b8;
+    border-top: 1px solid var(--c, #38bdf8);
+}
+@media print {
+    .rep-photo-cap {
+        color: #e2e8f0 !important;
+        background: #020617 !important;
+    }
+}

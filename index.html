@@ -18,6 +18,9 @@
     <!-- Three.js (Visor Topográfico 3D) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
+    <!-- html2pdf.js (Generación y descarga directa de PDF sin cuadro de impresión) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <!-- Estilos Unificados -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -575,7 +578,7 @@
         <div class="max-w-3xl mx-auto my-4">
             <div class="no-print flex flex-wrap justify-end gap-2 mb-2">
                 <button type="button" id="btn-download-txt" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 rounded-lg text-xs font-semibold">⬇ Descargar .txt</button>
-                <button type="button" id="btn-print-report" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-semibold">🖨 Descargar PDF</button>
+                <button type="button" id="btn-print-report" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-semibold">⬇ Descargar PDF</button>
                 <button type="button" id="btn-close-report" class="px-3 py-1.5 bg-rose-700 hover:bg-rose-600 text-white rounded-lg text-xs font-semibold">✕ Cerrar</button>
             </div>
             <article id="report-content" class="report-sheet rounded-2xl p-6 sm:p-8"></article>

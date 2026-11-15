@@ -1556,6 +1556,7 @@
         const cap = $(capId);
         if (!host) return;
         const img = new Image();
+        img.crossOrigin = 'anonymous';
         img.alt = caption;
         img.onload = () => {
             if (!$(hostId)) return;
@@ -1672,10 +1673,60 @@
         a.click();
     }
 
+    async function downloadReportPDF() {
+        const M = lastReportModel || buildReportModel();
+        const btn = $('btn-print-report');
+        const reportEl = $('report-content');
+        if (!reportEl) return;
+
+        // Asegurar que los canvas WebGL 3D tengan el frame actual renderizado
+        if (repComp) repComp.renderAll();
+
+        const filename = `analisis-${M.targetKey}-${M.modeKey}-${M.monthName.toLowerCase()}.pdf`;
+        const originalText = btn ? btn.textContent : '⬇ Descargar PDF';
+
+        if (typeof html2pdf === 'undefined') {
+            alert('La librería html2pdf aún se está cargando. Por favor, intenta de nuevo en unos segundos.');
+            return;
+        }
+
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '⏳ Generando PDF…';
+            }
+
+            const opt = {
+                margin: [8, 8, 8, 8],
+                filename: filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#0f1626',
+                    logging: false,
+                    ignoreElements: (el) => el.classList && el.classList.contains('no-print')
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            await html2pdf().set(opt).from(reportEl).save();
+        } catch (err) {
+            console.error('Error al generar el PDF:', err);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+    }
+
     $('report-btn').addEventListener('click', openAnalysisReport);
     $('btn-close-report').addEventListener('click', closeAnalysisReport);
     $('btn-download-txt').addEventListener('click', downloadReportText);
-    $('btn-print-report').addEventListener('click', () => window.print());
+    $('btn-print-report').addEventListener('click', downloadReportPDF);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closeAnalysisReport();
     });
